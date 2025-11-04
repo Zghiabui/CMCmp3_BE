@@ -1,7 +1,7 @@
 package com.example.CMCmp3.config;
 
 import com.example.CMCmp3.security.JwtAuthenticationFilter;
-import com.example.CMCmp3.security.UserDetailsService;
+import com.example.CMCmp3.security.UserDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,7 +21,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    private final UserDetailsService userDetailsService;
+    private final UserDetailsServiceImpl userDetailsServiceImpl;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -32,7 +32,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll() // Cho phép truy cập không cần token
                         .anyRequest().authenticated() // Các route khác cần xác thực
                 )
-                .userDetailsService(userDetailsService)
+                .userDetailsService(userDetailsServiceImpl)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
