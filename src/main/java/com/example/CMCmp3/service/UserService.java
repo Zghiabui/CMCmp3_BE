@@ -1,9 +1,10 @@
 package com.example.CMCmp3.service;
 
-import com.yourcompany.musicapp.entity.User;
-import com.yourcompany.musicapp.enums.Role;
-import com.yourcompany.musicapp.enums.UserStatus;
-import com.yourcompany.musicapp.repository.UserRepository;
+import com.example.CMCmp3.entity.User;
+import com.example.CMCmp3.entity.User;
+import com.example.CMCmp3.entity.Role;
+import com.example.CMCmp3.entity.UserStatus;
+import com.example.CMCmp3.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -59,5 +60,20 @@ public class UserService {
             username = cleanBase + suffix;
         } while (userRepository.existsByUsername(username));
         return username;
+    }
+
+    public User authenticate(String email, String rawPassword) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Email không tồn tại"));
+
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new RuntimeException("Tài khoản đã bị vô hiệu hóa");
+        }
+
+        if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
+            throw new RuntimeException("Mật khẩu không đúng");
+        }
+
+        return user;
     }
 }
