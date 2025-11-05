@@ -29,7 +29,10 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll() // Cho phép truy cập không cần token
+                        .requestMatchers("/api/auth/**",
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html").permitAll() // Cho phép truy cập không cần token
                         .anyRequest().authenticated() // Các route khác cần xác thực
                 )
                 .userDetailsService(userDetailsServiceImpl)
