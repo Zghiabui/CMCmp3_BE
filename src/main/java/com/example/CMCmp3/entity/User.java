@@ -28,7 +28,7 @@ public class User implements UserDetails {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, updatable = false, unique = true)
+    @Column(updatable = false, unique = true)
     private String username;
 
     @NotBlank(message = "Tên hiển thị không được để trống")
@@ -45,7 +45,7 @@ public class User implements UserDetails {
     @Column(unique = true)
     private String phone;
 
-    @Column(nullable = false)
+    @Column
     private String password; // Đã mã hóa bằng BCrypt
 
     private String avatarUrl;
@@ -62,6 +62,12 @@ public class User implements UserDetails {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private AuthProvider provider;
+
+    private String providerId;
 
     @CreationTimestamp
     @Column(updatable = false)
