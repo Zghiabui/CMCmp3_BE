@@ -12,18 +12,11 @@ public class PlaylistDTO {
 
     @NotBlank(message = "Tên playlist không được để trống")
     private String name;
-
     private String description;
-
     private String imageUrl;
-
     private Set<Long> songIds;
-
     private int numberOfSongs;
-
     private Long listenCount;
-
     private Long likeCount;
-
     private Long userId;
 }
