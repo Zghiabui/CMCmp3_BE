@@ -5,53 +5,28 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
-@Entity
-@Table(name = "songs")
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@Entity
+@Table(name = "songs")
 public class Song {
-
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false)
+    private String id;
     private String title;
-
-    @Column(nullable = false)
     private String artist;
-
-    @Column(nullable = false)
-    private int duration;
-
-    private String imageUrl;
-
-    @Column(nullable = false)
+    private Integer duration; // in seconds
     private String filePath;
-
-    @Builder.Default
-    private Long listenCount = 0L;
-
-    @Builder.Default
-    private Long likeCount = 0L;
-
-    @Lob
+    private String imageUrl;
+    private Long listenCount;
+    private Long likeCount;
+    private Boolean isFavorite;
+    @Column(columnDefinition = "TEXT")
     private String description;
-
-    @Column(nullable = false)
+    private Instant createdAt;
     private String label;
-
-    @CreationTimestamp
-    @Column(updatable = false)
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
 }
