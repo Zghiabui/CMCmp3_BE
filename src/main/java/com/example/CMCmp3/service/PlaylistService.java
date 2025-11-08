@@ -28,28 +28,33 @@ public class PlaylistService {
                 .collect(Collectors.toList());
     }
 
-    private PlaylistDTO toDTO(Playlist p) {
+    private static Long toLong(Number n, long def) {
+        return (n == null) ? def : n.longValue();
+    }
 
-        // ✅ Lấy danh sách ID bài hát và ép String → Long để khớp PlaylistDTO
-        Set<Long> songIds = Optional.ofNullable(p.getSongs())
+    private PlaylistDTO toDTO(Playlist p) {
+        // Giữ String vì Song.id là String/UUID
+        Set<String> songIds = Optional.ofNullable(p.getSongs())
                 .orElse(Collections.emptySet())
                 .stream()
-                .map(Song::getId)              // Song.id là String
-                .map(Long::valueOf)            // → ép sang Long theo DTO
+                .map(Song::getId)
                 .collect(Collectors.toSet());
 
         PlaylistDTO dto = new PlaylistDTO();
-        dto.setId(p.getId());
+        dto.setId(p.getId());                           // String -> String
         dto.setName(p.getName());
         dto.setDescription(p.getDescription());
         dto.setImageUrl(p.getImageUrl());
-        dto.setSongs(songIds);                           // ✅ Set<Long>
-        dto.setNumberOfSongs(songIds.size());            // ✅ Tự tính
-        dto.setListenCount(Long.valueOf(p.getListenCount()));
-        dto.setLikeCount(Long.valueOf(p.getLikeCount()));
-        dto.setUserId(p.getUser() != null ? p.getUser().getId() : null);
-        dto.setCreatedAt(p.getCreatedAt());              // ✅ Hiển thị yyyy-MM-dd nhờ @JsonFormat
 
+        dto.setSongs(songIds);
+        dto.setNumberOfSongs(songIds.size());
+
+        // Entity đang int -> convert null-safe sang Long cho DTO
+        dto.setListenCount(toLong(p.getListenCount(), 0));
+        dto.setLikeCount(toLong(p.getLikeCount(), 0));
+
+        dto.setUserId(p.getUser() != null ? p.getUser().getId() : null);
+        dto.setCreatedAt(p.getCreatedAt());
         return dto;
     }
 }
