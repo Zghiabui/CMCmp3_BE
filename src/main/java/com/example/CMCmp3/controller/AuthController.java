@@ -24,11 +24,7 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterDTO request) {
         try {
-            User user = userService.registerUser(
-                    request.getDisplayName(),
-                    request.getEmail(),
-                    request.getPassword()
-            );
+            User user = userService.registerUser(request);
             String token = jwtService.generateToken(user);
             return ResponseEntity.ok(Map.of(
                     "message", "Đăng ký thành công",
