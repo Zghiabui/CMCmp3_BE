@@ -28,4 +28,6 @@ public interface SongRepository extends JpaRepository<Song, String> {
 
     List<Song> searchSongsByTitleOrArtist(@Param("query") String query);
 
+    List<Song> findAllByArtistId(Long artistId);
+
 }
