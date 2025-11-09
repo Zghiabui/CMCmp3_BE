@@ -19,7 +19,7 @@ public class PlaylistDTO {
 
     private String imageUrl;
 
-    private Set<Long> songs;
+    private Set<String> songs;
 
     private int numberOfSongs;
 

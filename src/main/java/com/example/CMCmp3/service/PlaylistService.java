@@ -31,11 +31,10 @@ public class PlaylistService {
     private PlaylistDTO toDTO(Playlist p) {
 
         // ✅ Lấy danh sách ID bài hát và ép String → Long để khớp PlaylistDTO
-        Set<Long> songIds = Optional.ofNullable(p.getSongs())
+        Set<String> songIds = Optional.ofNullable(p.getSongs())
                 .orElse(Collections.emptySet())
                 .stream()
                 .map(Song::getId)              // Song.id là String
-                .map(Long::valueOf)            // → ép sang Long theo DTO
                 .collect(Collectors.toSet());
 
         PlaylistDTO dto = new PlaylistDTO();
@@ -43,7 +42,7 @@ public class PlaylistService {
         dto.setName(p.getName());
         dto.setDescription(p.getDescription());
         dto.setImageUrl(p.getImageUrl());
-        dto.setSongs(songIds);                           // ✅ Set<Long>
+        dto.setSongs(songIds);                           // ✅ Set<String>
         dto.setNumberOfSongs(songIds.size());            // ✅ Tự tính
         dto.setListenCount(Long.valueOf(p.getListenCount()));
         dto.setLikeCount(Long.valueOf(p.getLikeCount()));
