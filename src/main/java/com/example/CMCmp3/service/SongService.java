@@ -4,9 +4,14 @@ import com.example.CMCmp3.dto.SongDTO;
 import com.example.CMCmp3.entity.Song;
 import com.example.CMCmp3.repository.SongRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.MalformedURLException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
@@ -32,6 +37,26 @@ public class SongService {
         Song song = songRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Song not found: " + id));
         return toDTO(song);
+    }
+
+    @Transactional(readOnly = true)
+    public Resource getSongFile(String id) {
+        Song song = songRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Song not found: " + id));
+
+        String filePath = song.getFilePath();
+        try {
+            Path file = Paths.get(filePath);
+            Resource resource = new UrlResource(file.toUri());
+
+            if (resource.exists() || resource.isReadable()) {
+                return resource;
+            } else {
+                throw new RuntimeException("Could not read the file!");
+            }
+        } catch (MalformedURLException e) {
+            throw new RuntimeException("Error: " + e.getMessage());
+        }
     }
 
     /* ========= MAPPING (Entity -> DTO) ========= */
