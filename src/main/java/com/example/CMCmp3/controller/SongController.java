@@ -4,6 +4,9 @@ import com.example.CMCmp3.dto.SongDTO;
 import com.example.CMCmp3.service.SongService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,5 +30,14 @@ public class SongController {
     @GetMapping("/{id}")
     public ResponseEntity<SongDTO> getById(@PathVariable String id) {
         return ResponseEntity.ok(songService.getById(id));
+    }
+
+    @GetMapping("/stream/{id}")
+    public ResponseEntity<Resource> streamSong(@PathVariable String id) {
+        Resource resource = songService.getSongFile(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.valueOf("audio/mpeg"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + resource.getFilename() + "\"")
+                .body(resource);
     }
 }
