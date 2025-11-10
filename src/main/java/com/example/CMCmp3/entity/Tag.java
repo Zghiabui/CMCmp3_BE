@@ -24,6 +24,9 @@ public class Tag {
     @Column(name = "name", nullable = false, unique = true)
     private String name;
 
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
+
     @ManyToMany(mappedBy = "tags", fetch = FetchType.LAZY)
     private Set<Song> songs = new HashSet<>();
 }
