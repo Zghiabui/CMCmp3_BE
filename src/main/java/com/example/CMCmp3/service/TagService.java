@@ -62,6 +62,16 @@ public class TagService {
         return convertToDTO(updatedTag);
     }
 
+    @Transactional
+    public void deleteTag(Long id) {
+        Tag tag = tagRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy thể loại với ID: " + id));
+        if (!tag.getSongs().isEmpty()) {
+            throw new DataIntegrityViolationException("Không thể xóa thể loại '" + tag.getName() + "' vì vẫn còn bài hát.");
+        }
+        tagRepository.delete(tag);
+    }
+
     private TagDTO convertToDTO(Tag tag) {
         TagDTO dto = new TagDTO();
         dto.setId(tag.getId());
