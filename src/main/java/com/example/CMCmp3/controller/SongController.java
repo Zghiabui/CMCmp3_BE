@@ -1,6 +1,7 @@
 package com.example.CMCmp3.controller;
 
 import com.example.CMCmp3.dto.SongDTO;
+import com.example.CMCmp3.dto.TopSongDTO;
 import com.example.CMCmp3.service.SongService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,12 @@ public class SongController {
     @GetMapping
     public ResponseEntity<List<SongDTO>> getAll() {
         return ResponseEntity.ok(songService.getAll());
+    }
+
+    // GET /api/songs/top?limit=10
+    @GetMapping("/top")
+    public ResponseEntity<List<TopSongDTO>> getTop(@RequestParam(defaultValue = "10") int limit) {
+        return ResponseEntity.ok(songService.getTopSongs(limit));
     }
 
     // GET /api/songs/{id}  (id là String theo Entity)
