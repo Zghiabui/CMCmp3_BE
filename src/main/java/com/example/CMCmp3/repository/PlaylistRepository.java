@@ -27,4 +27,32 @@ public interface PlaylistRepository extends JpaRepository<Playlist, String> {
         ORDER BY p.listenCount DESC
     """)
     List<TopPlaylistDTO> findTopByListenCount(Pageable pageable);
+
+    @Query("""
+        SELECT new com.example.CMCmp3.dto.TopPlaylistDTO(
+            p.id,
+            p.name,
+            p.imageUrl,
+            CAST(p.listenCount AS long),
+            COALESCE(u.displayName, u.username)
+        )
+        FROM Playlist p
+        LEFT JOIN p.user u
+        ORDER BY p.createdAt DESC
+    """)
+    List<TopPlaylistDTO> findTopByCreatedAt(Pageable pageable);
+
+    @Query("""
+        SELECT new com.example.CMCmp3.dto.TopPlaylistDTO(
+            p.id,
+            p.name,
+            p.imageUrl,
+            CAST(p.listenCount AS long),
+            COALESCE(u.displayName, u.username)
+        )
+        FROM Playlist p
+        LEFT JOIN p.user u
+        ORDER BY p.likeCount DESC
+    """)
+    List<TopPlaylistDTO> findTopByLikeCount(Pageable pageable);
 }

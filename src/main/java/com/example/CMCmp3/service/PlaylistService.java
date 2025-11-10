@@ -1,10 +1,13 @@
 package com.example.CMCmp3.service;
 
 import com.example.CMCmp3.dto.PlaylistDTO;
+import com.example.CMCmp3.dto.TopPlaylistDTO;
 import com.example.CMCmp3.entity.Playlist;
 import com.example.CMCmp3.entity.Song;
 import com.example.CMCmp3.repository.PlaylistRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,8 +21,8 @@ public class PlaylistService {
     private final PlaylistRepository playlistRepository;
 
     @Transactional(readOnly = true)
-    public List<PlaylistDTO> getAllPlaylists() {
-        return playlistRepository.findAll()
+    public List<PlaylistDTO> getAllPlaylists(Sort sort) {
+        return playlistRepository.findAll(sort)
                 .stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
@@ -30,6 +33,21 @@ public class PlaylistService {
         Playlist playlist = playlistRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Playlist not found: " + id));
         return toDTO(playlist);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TopPlaylistDTO> getTopPlaylists(int limit) {
+        return playlistRepository.findTopByListenCount(PageRequest.of(0, Math.max(1, limit)));
+    }
+
+    @Transactional(readOnly = true)
+    public List<TopPlaylistDTO> getTopPlaylistsByReleaseDate(int limit) {
+        return playlistRepository.findTopByCreatedAt(PageRequest.of(0, Math.max(1, limit)));
+    }
+
+    @Transactional(readOnly = true)
+    public List<TopPlaylistDTO> getTopPlaylistsByLikes(int limit) {
+        return playlistRepository.findTopByLikeCount(PageRequest.of(0, Math.max(1, limit)));
     }
 
     private static Long toLong(Number n, long def) {
