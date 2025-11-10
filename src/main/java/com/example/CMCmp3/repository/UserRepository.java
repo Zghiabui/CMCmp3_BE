@@ -38,6 +38,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     boolean existsByUsername(String username);
 
+    boolean existsByPhone(String phone);
 
 
     // Tìm user theo email bất kể trạng thái (để khôi phục tài khoản)
