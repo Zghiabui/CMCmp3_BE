@@ -4,19 +4,18 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Data;
 
+import java.time.Instant;
+
 @Data
 public class SongDTO {
 
-    private Long id;
+    private String id;
 
     @NotBlank(message = "Tiêu đề không được để trống")
     private String title;
 
     @NotBlank(message = "Nghệ sĩ không được để trống")
     private String artist;
-
-    @PositiveOrZero(message = "Thời lượng phải là số dương")
-    private int duration;
 
     private String imageUrl;
 
@@ -30,4 +29,6 @@ public class SongDTO {
     private String description;
 
     private String label;
+
+    private Instant createdAt;
 }

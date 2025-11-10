@@ -64,28 +64,23 @@ public class SongService {
     private SongDTO toDTO(Song s) {
         SongDTO dto = new SongDTO();
 
-        // Entity.id (String) -> DTO.id (Long)
-        dto.setId(parseLongSafe(s.getId())); // null nếu id không phải số
+        // Entity.id (String) -> DTO.id (String)
+        dto.setId(s.getId());
 
         dto.setTitle(s.getTitle());
-        dto.setArtist(s.getArtist());
-        dto.setDuration(s.getDuration() == null ? 0 : s.getDuration());
+        if (s.getArtist() != null) {
+            dto.setArtist(s.getArtist().getName());
+        }
         dto.setImageUrl(s.getImageUrl());
         dto.setFilePath(s.getFilePath());
         dto.setListenCount(s.getListenCount());
         dto.setLikeCount(s.getLikeCount());
         dto.setDescription(s.getDescription());
         dto.setLabel(s.getLabel());
+        dto.setCreatedAt(s.getCreatedAt());
 
         return dto;
     }
 
-    private Long parseLongSafe(String val) {
-        if (val == null) return null;
-        try {
-            return Long.parseLong(val);
-        } catch (NumberFormatException ex) {
-            return null;
-        }
-    }
+
 }

@@ -18,7 +18,11 @@ public class Song {
     @Id
     private String id;
     private String title;
-    private String artist;
+
+    @ManyToOne
+    @JoinColumn(name = "artist_id")
+    private Artist artist;
+
     private Integer duration; // in seconds
     private String filePath;
     private String imageUrl;

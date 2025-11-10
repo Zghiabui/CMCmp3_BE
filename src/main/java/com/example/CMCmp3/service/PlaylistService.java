@@ -8,10 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,6 +23,13 @@ public class PlaylistService {
                 .stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public PlaylistDTO getPlaylistById(String id) {
+        Playlist playlist = playlistRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Playlist not found: " + id));
+        return toDTO(playlist);
     }
 
     private static Long toLong(Number n, long def) {
@@ -53,8 +57,13 @@ public class PlaylistService {
         dto.setListenCount(toLong(p.getListenCount(), 0));
         dto.setLikeCount(toLong(p.getLikeCount(), 0));
 
+        dto.setSongs(songIds);                           // ✅ Set<String>
+        dto.setNumberOfSongs(songIds.size());            // ✅ Tự tính
+        dto.setListenCount(Long.valueOf(p.getListenCount()));
+        dto.setLikeCount(Long.valueOf(p.getLikeCount()));
         dto.setUserId(p.getUser() != null ? p.getUser().getId() : null);
-        dto.setCreatedAt(p.getCreatedAt());
+        dto.setCreatedAt(p.getCreatedAt());              // ✅ Hiển thị yyyy-MM-dd nhờ @JsonFormat
+
         return dto;
     }
 }

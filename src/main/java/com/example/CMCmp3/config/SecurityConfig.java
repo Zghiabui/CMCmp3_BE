@@ -54,6 +54,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**", "/login/oauth2/**").permitAll()
                         .requestMatchers("/api/charts/realtime").permitAll()
                         .requestMatchers("/api/songs/**").permitAll()
+                        .requestMatchers("/api/search").permitAll()
+                        .requestMatchers("/api/playlists/{id}").permitAll()
+                        .requestMatchers("/api/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/playlists/**").permitAll() // ⬅ ADDED
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/me").authenticated()
