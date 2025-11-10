@@ -1,11 +1,13 @@
 package com.example.CMCmp3.service;
 
 import com.example.CMCmp3.dto.SongDTO;
+import com.example.CMCmp3.dto.TopSongDTO;
 import com.example.CMCmp3.entity.Song;
 import com.example.CMCmp3.repository.SongRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +39,21 @@ public class SongService {
         Song song = songRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Song not found: " + id));
         return toDTO(song);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TopSongDTO> getTopSongs(int limit) {
+        return songRepository.findTopByListenCount(PageRequest.of(0, Math.max(1, limit)));
+    }
+
+    @Transactional(readOnly = true)
+    public List<TopSongDTO> getTopSongsByReleaseDate(int limit) {
+        return songRepository.findTopByCreatedAt(PageRequest.of(0, Math.max(1, limit)));
+    }
+
+    @Transactional(readOnly = true)
+    public List<TopSongDTO> getTopSongsByLikes(int limit) {
+        return songRepository.findTopByLikeCount(PageRequest.of(0, Math.max(1, limit)));
     }
 
     @Transactional(readOnly = true)
