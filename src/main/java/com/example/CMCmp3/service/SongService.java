@@ -27,8 +27,8 @@ public class SongService {
     /* ========= READ ========= */
 
     @Transactional(readOnly = true)
-    public List<SongDTO> getAll() {
-        return songRepository.findAll()
+    public List<SongDTO> getAll(org.springframework.data.domain.Sort sort) {
+        return songRepository.findAll(sort)
                 .stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
