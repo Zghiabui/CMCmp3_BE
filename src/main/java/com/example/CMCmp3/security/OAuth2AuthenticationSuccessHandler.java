@@ -9,7 +9,9 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
@@ -21,6 +23,7 @@ import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
     private final UserRepository userRepository;
@@ -28,39 +31,63 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
+        if (!(authentication instanceof OAuth2AuthenticationToken)) {
+            super.onAuthenticationSuccess(request, response, authentication);
+            return;
+        }
+
+        OAuth2AuthenticationToken oauthToken = (OAuth2AuthenticationToken) authentication;
         DefaultOAuth2User oauthUser = (DefaultOAuth2User) authentication.getPrincipal();
         Map<String, Object> attributes = oauthUser.getAttributes();
         String email = (String) attributes.get("email");
         String name = (String) attributes.get("name");
         String avatarUrl = (String) attributes.get("picture");
+        String providerId = oauthUser.getName();
 
-        Optional<User> userOptional = userRepository.findByEmail(email);
-        User user;
-        if (userOptional.isPresent()) {
-            user = userOptional.get();
-            // Update user info if necessary
-            user.setDisplayName(name);
-            user.setAvatarUrl(avatarUrl);
-            userRepository.save(user);
-        } else {
-            // Create new user
-            user = new User();
-            user.setEmail(email);
-            user.setUsername(email); // Use email as username
-            user.setDisplayName(name);
-            user.setAvatarUrl(avatarUrl);
-            user.setProvider(AuthProvider.GOOGLE);
-            user.setPassword(""); // Set an empty password for OAuth2 users
-            user.setRole(Role.USER);
-            user.setStatus(UserStatus.ACTIVE);
-            userRepository.save(user);
+        String registrationId = oauthToken.getAuthorizedClientRegistrationId();
+        AuthProvider provider = AuthProvider.valueOf(registrationId.toUpperCase());
+
+        try {
+            Optional<User> userOptional = userRepository.findByEmail(email);
+            User user;
+            if (userOptional.isPresent()) {
+                user = userOptional.get();
+                // Update user info
+                user.setDisplayName(name);
+                user.setAvatarUrl(avatarUrl);
+                // If user exists but logs in with a new OAuth2 provider
+                if (user.getProvider() == AuthProvider.LOCAL) {
+                    user.setProvider(provider);
+                    user.setProviderId(providerId);
+                }
+                userRepository.save(user);
+            } else {
+                // Create new user
+                user = new User();
+                user.setEmail(email);
+                user.setUsername(email); // Use email as username
+                user.setDisplayName(name);
+                user.setAvatarUrl(avatarUrl);
+                user.setProvider(provider);
+                user.setProviderId(providerId);
+                user.setPassword(""); // Set an empty password for OAuth2 users
+                user.setRole(Role.USER);
+                user.setStatus(UserStatus.ACTIVE);
+                userRepository.save(user);
+            }
+
+            String token = jwtService.generateToken(user);
+            String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:3000/oauth2/redirect")
+                    .queryParam("token", token)
+                    .build().toUriString();
+
+            getRedirectStrategy().sendRedirect(request, response, targetUrl);
+        } catch (Exception ex) {
+            log.error("Error processing OAuth2 authentication", ex);
+            String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:3000/oauth2/redirect")
+                    .queryParam("error", "true")
+                    .build().toUriString();
+            getRedirectStrategy().sendRedirect(request, response, targetUrl);
         }
-
-        String token = jwtService.generateToken(user);
-        String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:3000/")
-                .queryParam("token", token)
-                .build().toUriString();
-
-        getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
 }
