@@ -43,6 +43,25 @@ public class TagService {
         return convertToDTO(savedTag);
     }
 
+    @Transactional
+    public TagDTO updateTag(Long id, UpdateTagDTO updateTagDTO) {
+        Tag tag = tagRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy thể loại với ID: " + id));
+
+        if (updateTagDTO.getName() != null && !updateTagDTO.getName().equals(tag.getName())) {
+            Optional<Tag> existingTag = tagRepository.findByName(updateTagDTO.getName());
+            if (existingTag.isPresent()) {
+                throw new DataIntegrityViolationException("Tên thể loại '" + updateTagDTO.getName() + "' đã tồn tại.");
+            }
+            tag.setName(updateTagDTO.getName());
+        }
+        if (updateTagDTO.getDescription() != null) {
+            tag.setDescription(updateTagDTO.getDescription());
+        }
+        Tag updatedTag = tagRepository.save(tag);
+        return convertToDTO(updatedTag);
+    }
+
     private TagDTO convertToDTO(Tag tag) {
         TagDTO dto = new TagDTO();
         dto.setId(tag.getId());
