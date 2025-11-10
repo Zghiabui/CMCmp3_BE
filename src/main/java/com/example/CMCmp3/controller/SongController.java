@@ -33,6 +33,18 @@ public class SongController {
         return ResponseEntity.ok(songService.getTopSongs(limit));
     }
 
+    // GET /api/songs/top/new-releases?limit=10
+    @GetMapping("/top/new-releases")
+    public ResponseEntity<List<TopSongDTO>> getTopNewReleases(@RequestParam(defaultValue = "10") int limit) {
+        return ResponseEntity.ok(songService.getTopSongsByReleaseDate(limit));
+    }
+
+    // GET /api/songs/top/most-liked?limit=10
+    @GetMapping("/top/most-liked")
+    public ResponseEntity<List<TopSongDTO>> getTopMostLiked(@RequestParam(defaultValue = "10") int limit) {
+        return ResponseEntity.ok(songService.getTopSongsByLikes(limit));
+    }
+
     // GET /api/songs/{id}  (id là String theo Entity)
     @GetMapping("/{id}")
     public ResponseEntity<SongDTO> getById(@PathVariable String id) {
