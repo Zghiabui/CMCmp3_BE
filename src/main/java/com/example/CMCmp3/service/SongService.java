@@ -47,6 +47,16 @@ public class SongService {
     }
 
     @Transactional(readOnly = true)
+    public List<TopSongDTO> getTopSongsByReleaseDate(int limit) {
+        return songRepository.findTopByCreatedAt(PageRequest.of(0, Math.max(1, limit)));
+    }
+
+    @Transactional(readOnly = true)
+    public List<TopSongDTO> getTopSongsByLikes(int limit) {
+        return songRepository.findTopByLikeCount(PageRequest.of(0, Math.max(1, limit)));
+    }
+
+    @Transactional(readOnly = true)
     public Resource getSongFile(String id) {
         Song song = songRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Song not found: " + id));
