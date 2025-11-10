@@ -48,4 +48,10 @@ public class TagController {
         return ResponseEntity.ok(updatedTag);
     }
 
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteTag(@PathVariable Long id) {
+        tagService.deleteTag(id);
+        return ResponseEntity.noContent().build();
+    }
 }
