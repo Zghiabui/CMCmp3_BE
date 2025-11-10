@@ -11,6 +11,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.data.domain.Sort;
+
 import java.util.List;
 
 @RestController
@@ -21,10 +23,10 @@ public class SongController {
 
     private final SongService songService;
 
-    // GET /api/songs
+    // GET /api/songs?sort=title,asc
     @GetMapping
-    public ResponseEntity<List<SongDTO>> getAll() {
-        return ResponseEntity.ok(songService.getAll());
+    public ResponseEntity<List<SongDTO>> getAll(Sort sort) {
+        return ResponseEntity.ok(songService.getAll(sort));
     }
 
     // GET /api/songs/top?limit=10
