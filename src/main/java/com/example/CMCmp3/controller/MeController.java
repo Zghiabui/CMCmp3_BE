@@ -1,41 +1,33 @@
 package com.example.CMCmp3.controller;
 
-import com.example.CMCmp3.entity.User;
-import com.example.CMCmp3.repository.UserRepository;
+import com.example.CMCmp3.dto.UpdateUserDTO;
+import com.example.CMCmp3.dto.UserDTO;
+import com.example.CMCmp3.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
-import java.util.stream.Collectors;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/me")
 @RequiredArgsConstructor
 public class MeController {
 
-    private final UserRepository userRepository;
+    private final UserService userService;
 
-    @GetMapping("/me")
-    public Map<String, Object> me(Authentication auth) {
-        if (auth == null || !(auth.getPrincipal() instanceof UserDetails ud)) {
-            throw new RuntimeException("Người dùng chưa đăng nhập");
-        }
+    @GetMapping
+    public ResponseEntity<UserDTO> getMe(Authentication authentication) {
+        return ResponseEntity.ok(userService.getMe(authentication));
+    }
 
-        User user = userRepository.findByEmail(ud.getUsername())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    @PutMapping
+    public ResponseEntity<UserDTO> updateMe(Authentication authentication, @RequestBody UpdateUserDTO userDTO) {
+        return ResponseEntity.ok(userService.updateMe(authentication, userDTO));
+    }
 
-        return Map.of(
-                "id", user.getId(),
-                "displayName", user.getDisplayName(),
-                "avatarUrl", user.getAvatarUrl(),
-                "email", ud.getUsername(),
-                "roles", ud.getAuthorities()
-                        .stream()
-                        .map(GrantedAuthority::getAuthority)
-                        .collect(Collectors.toList())
-        );
+    @PostMapping("/avatar")
+    public ResponseEntity<UserDTO> updateAvatar(Authentication authentication, @RequestParam("avatar") MultipartFile file) {
+        return ResponseEntity.ok(userService.updateAvatar(authentication, file));
     }
 }
