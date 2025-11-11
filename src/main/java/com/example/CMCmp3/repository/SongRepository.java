@@ -1,6 +1,7 @@
 package com.example.CMCmp3.repository;
 
 import com.example.CMCmp3.entity.Song;
+import com.example.CMCmp3.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -42,4 +43,6 @@ public interface SongRepository extends JpaRepository<Song, Long> {
 
     @Query("SELECT s FROM Song s ORDER BY s.likeCount DESC")
     List<Song> findTopByLikeCount(Pageable pageable);
+
+    List<Song> findByUploader(User uploader);
 }

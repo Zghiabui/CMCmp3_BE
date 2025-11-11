@@ -1,12 +1,12 @@
 package com.example.CMCmp3.service;
 
 import com.example.CMCmp3.dto.*;
-import com.example.CMCmp3.entity.Artist;
-import com.example.CMCmp3.entity.Song;
-import com.example.CMCmp3.entity.Tag;
+import com.example.CMCmp3.entity.*;
 import com.example.CMCmp3.repository.ArtistRepository;
 import com.example.CMCmp3.repository.SongRepository;
 import com.example.CMCmp3.repository.TagRepository;
+import com.example.CMCmp3.repository.UserRepository;
+import com.example.CMCmp3.repository.SongLikeRepository;
 import com.mpatric.mp3agic.Mp3File;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
@@ -14,6 +14,8 @@ import org.springframework.core.io.UrlResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -36,6 +38,8 @@ public class SongService {
     private final ArtistRepository artistRepository;
     private final TagRepository tagRepository;
     private final FileStorageService fileStorageService;
+    private final UserRepository userRepository;
+    private final SongLikeRepository songLikeRepository;
 
     // =================================================================
     // 1. HELPERS: FETCHING & CALCULATION (Logic phụ trợ)
@@ -217,6 +221,34 @@ public class SongService {
                 .stream().map(this::toDTO).collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<SongDTO> getUploadedSongsForCurrentUser() {
+        // 1. Get current user
+        String email = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername();
+        User currentUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Current user not found in database"));
+
+        // 2. Find songs by uploader
+        List<Song> songs = songRepository.findByUploader(currentUser);
+
+        // 3. Map to DTOs and return
+        return songs.stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<SongDTO> getFavoriteSongsForCurrentUser() {
+        // 1. Get current user
+        String email = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername();
+        User currentUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Current user not found in database"));
+
+        // 2. Get liked songs from the user entity
+        return currentUser.getLikedSongs().stream()
+                .map(SongLike::getSong) // Extract Song from SongLike
+                .map(this::toDTO)      // Map Song to SongDTO
+                .collect(Collectors.toList());
+    }
+
     // =================================================================
     // 4. WRITE OPERATIONS (Ghi dữ liệu)
     // =================================================================
@@ -230,6 +262,11 @@ public class SongService {
 
     @Transactional
     public SongDTO createSongWithUpload(String title, String description, Set<Long> artistIds, Set<Long> tagIds, MultipartFile songFile, MultipartFile imageFile) {
+        // 0. Get current user
+        String email = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername();
+        User currentUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Current user not found in database"));
+
         // 1. Store files
         String songFilePath = fileStorageService.storeFile(songFile, "music");
         String imageFilePath = fileStorageService.storeFile(imageFile, "images");
@@ -240,6 +277,7 @@ public class SongService {
         song.setDescription(description);
         song.setFilePath(songFilePath);
         song.setImageUrl(imageFilePath);
+        song.setUploader(currentUser); // Set the uploader
 
         // 3. Set default values and relationships
         song.setListenCount(0L);

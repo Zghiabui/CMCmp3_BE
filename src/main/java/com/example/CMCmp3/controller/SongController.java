@@ -60,6 +60,18 @@ public class SongController {
         return ResponseEntity.ok(songService.getTopMostLiked(limit));
     }
 
+    @GetMapping("/uploaded")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<SongDTO>> getUploadedSongs() {
+        return ResponseEntity.ok(songService.getUploadedSongsForCurrentUser());
+    }
+
+    @GetMapping("/favorites")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<SongDTO>> getFavoriteSongs() {
+        return ResponseEntity.ok(songService.getFavoriteSongsForCurrentUser());
+    }
+
     @GetMapping("/stream/{id}")
     public ResponseEntity<Resource> streamSong(@PathVariable Long id) {
         Resource resource = songService.getSongFile(id);
