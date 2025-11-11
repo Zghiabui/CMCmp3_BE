@@ -52,17 +52,14 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             User user;
             if (userOptional.isPresent()) {
                 user = userOptional.get();
-                // Update user info
-                user.setDisplayName(name);
-                user.setAvatarUrl(avatarUrl);
-                // If user exists but logs in with a new OAuth2 provider
+                // If user exists but logs in with a new OAuth2 provider, update the provider info.
                 if (user.getProvider() == AuthProvider.LOCAL) {
                     user.setProvider(provider);
                     user.setProviderId(providerId);
+                    userRepository.save(user);
                 }
-                userRepository.save(user);
             } else {
-                // Create new user
+                // Create new user and set info from provider
                 user = new User();
                 user.setEmail(email);
                 user.setUsername(email); // Use email as username

@@ -56,10 +56,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/songs/**").permitAll()
                         .requestMatchers("/api/search").permitAll()
                         .requestMatchers("/api/playlists/{id}").permitAll()
-                        .requestMatchers("/api/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/playlists/**").permitAll() // ⬅ ADDED
+                        .requestMatchers(HttpMethod.GET, "/api/playlists/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/me").authenticated()
+                        .requestMatchers("/images/**").permitAll()
+                        .requestMatchers("/api/me/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
