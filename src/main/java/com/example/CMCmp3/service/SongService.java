@@ -16,6 +16,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -34,6 +35,7 @@ public class SongService {
     private final SongRepository songRepository;
     private final ArtistRepository artistRepository;
     private final TagRepository tagRepository;
+    private final FileStorageService fileStorageService;
 
     // =================================================================
     // 1. HELPERS: FETCHING & CALCULATION (Logic phụ trợ)
@@ -191,18 +193,8 @@ public class SongService {
     public Resource getSongFile(Long id) {
         Song song = songRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Song not found: " + id));
-        try {
-            Path file = Paths.get(song.getFilePath());
-            // Lưu ý: Nếu filePath là URL (http), UrlResource vẫn hoạt động tốt
-            Resource resource = new UrlResource(file.toUri());
-            if (resource.exists() || resource.isReadable()) {
-                return resource;
-            } else {
-                throw new RuntimeException("Could not read the file!");
-            }
-        } catch (MalformedURLException e) {
-            throw new RuntimeException("Error: " + e.getMessage());
-        }
+        // Use FileStorageService to correctly load the file as a resource
+        return fileStorageService.loadFileAsResource(song.getFilePath());
     }
 
     // --- TOP CHARTS (Sử dụng logic Repository trả về List Entity) ---
@@ -232,6 +224,35 @@ public class SongService {
     @Transactional
     public SongDTO createSong(CreateSongDTO createSongDTO) {
         Song song = convertToEntity(createSongDTO);
+        Song savedSong = songRepository.save(song);
+        return toDTO(savedSong);
+    }
+
+    @Transactional
+    public SongDTO createSongWithUpload(String title, String description, Set<Long> artistIds, Set<Long> tagIds, MultipartFile songFile, MultipartFile imageFile) {
+        // 1. Store files
+        String songFilePath = fileStorageService.storeFile(songFile, "music");
+        String imageFilePath = fileStorageService.storeFile(imageFile, "images");
+
+        // 2. Create new Song entity
+        Song song = new Song();
+        song.setTitle(title);
+        song.setDescription(description);
+        song.setFilePath(songFilePath);
+        song.setImageUrl(imageFilePath);
+
+        // 3. Set default values and relationships
+        song.setListenCount(0L);
+        song.setLikeCount(0L);
+        song.setArtists(fetchArtistsByIds(artistIds));
+        song.setTags(fetchTagsByIds(tagIds));
+
+        // 4. Calculate duration from the stored file
+        // The file path is now relative, so we need to resolve it against the root upload directory
+        String fullSongPath = Paths.get("uploads").resolve(songFilePath).toAbsolutePath().toString();
+        song.setDuration(calculateDuration(fullSongPath));
+
+        // 5. Save and return DTO
         Song savedSong = songRepository.save(song);
         return toDTO(savedSong);
     }
