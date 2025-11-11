@@ -4,6 +4,9 @@ import com.example.CMCmp3.dto.UserDTO;
 import com.example.CMCmp3.entity.User;
 import com.example.CMCmp3.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -33,14 +36,12 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<UserDTO>> getAllUsers() {
-        List<User> users = userRepository.findAll();
-
-        List<UserDTO> userDTOs = users.stream()
-                .map(this::convertToDto)
-                .collect(Collectors.toList());
-
-        return ResponseEntity.ok(userDTOs);
+    public ResponseEntity<Page<UserDTO>> getAllUsers(
+            @PageableDefault(size = 10, sort = "id") Pageable pageable
+    ) {
+        Page<User> userPage = userRepository.findAll(pageable);
+        Page<UserDTO> userDtoPage = userPage.map(this::convertToDto);
+        return ResponseEntity.ok(userDtoPage);
     }
 
     private UserDTO convertToDto(User user) {
@@ -51,7 +52,7 @@ public class UserController {
                 user.getGender(),
                 user.getPhone(),
                 user.getAvatarUrl(),
-                Set.of("ROLE_" + user.getRole().name())
+                Set.of( user.getRole().name())
         );
     }
 
