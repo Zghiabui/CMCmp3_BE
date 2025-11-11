@@ -3,6 +3,7 @@ package com.example.CMCmp3.controller;
 import com.example.CMCmp3.dto.UserDTO;
 import com.example.CMCmp3.entity.User;
 import com.example.CMCmp3.repository.UserRepository;
+import com.example.CMCmp3.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
 public class UserController {
 
     private final UserRepository userRepository;
+    private final UserService userService;
 
     @GetMapping("/me")
     public ResponseEntity<UserDTO> getCurrentUser(@AuthenticationPrincipal UserDetails userDetails) {
@@ -44,6 +46,12 @@ public class UserController {
         return ResponseEntity.ok(userDtoPage);
     }
 
+    @GetMapping("/admin/users")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<Page<UserDTO>> getAllUsers(Pageable pageable) {
+        Page<UserDTO> users = userService.getAllUsers(pageable);
+        return ResponseEntity.ok(users);
+    }
     private UserDTO convertToDto(User user) {
         return new UserDTO(
                 user.getId(),
