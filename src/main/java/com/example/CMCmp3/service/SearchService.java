@@ -1,9 +1,6 @@
 package com.example.CMCmp3.service;
 
-import com.example.CMCmp3.dto.ArtistDTO;
-import com.example.CMCmp3.dto.PlaylistDTO;
-import com.example.CMCmp3.dto.SearchResponseDTO;
-import com.example.CMCmp3.dto.SongDTO;
+import com.example.CMCmp3.dto.*;
 import com.example.CMCmp3.entity.Artist;
 import com.example.CMCmp3.entity.Playlist;
 import com.example.CMCmp3.entity.Song;
@@ -14,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -29,71 +27,94 @@ public class SearchService {
     public SearchResponseDTO search(String query) {
         SearchResponseDTO response = new SearchResponseDTO();
 
-        response.setSongs(songRepository.searchSongsByTitleOrArtist(query)
+        // 1. Tìm bài hát (Theo tiêu đề hoặc tên ca sĩ)
+        List<SongDTO> songs = songRepository.searchSongsByTitleOrArtist(query)
                 .stream()
                 .map(this::toSongDTO)
-                .collect(Collectors.toList()));
+                .collect(Collectors.toList());
+        response.setSongs(songs);
 
-        response.setArtists(artistRepository.findAllByNameContainingIgnoreCase(query)
+        // 2. Tìm ca sĩ (Theo tên)
+        List<ArtistDTO> artists = artistRepository.searchByName(query)
                 .stream()
                 .map(this::toArtistDTO)
-                .collect(Collectors.toList()));
+                .collect(Collectors.toList());
+        response.setArtists(artists);
 
-        List<Playlist> playlists = playlistRepository.findAllByNameContainingIgnoreCase(query);
-        for (Playlist playlist : playlists) {
-            playlist.getSongs().size();
-        }
-        response.setPlaylists(playlists
+        // 3. Tìm Playlist (Theo tiêu đề)
+        List<PlaylistDTO> playlists = playlistRepository.searchByTitle(query)
                 .stream()
                 .map(this::toPlaylistDTO)
-                .collect(Collectors.toList()));
+                .collect(Collectors.toList());
+        response.setPlaylists(playlists);
 
         return response;
     }
 
+    // --- PRIVATE MAPPERS (Đồng bộ logic với các Service khác) ---
+
+    // Mapping Song Entity -> DTO
     private SongDTO toSongDTO(Song s) {
         SongDTO dto = new SongDTO();
         dto.setId(s.getId());
         dto.setTitle(s.getTitle());
-        if (s.getArtist() != null) {
-            dto.setArtist(s.getArtist().getName());
-        }
-        dto.setImageUrl(s.getImageUrl());
+        dto.setDuration(s.getDuration());
         dto.setFilePath(s.getFilePath());
+        dto.setImageUrl(s.getImageUrl());
         dto.setListenCount(s.getListenCount());
         dto.setLikeCount(s.getLikeCount());
         dto.setDescription(s.getDescription());
-        dto.setLabel(s.getLabel());
         dto.setCreatedAt(s.getCreatedAt());
+
+        // Map danh sách Artists (Thay vì getArtist đơn lẻ)
+        if (s.getArtists() != null) {
+            dto.setArtists(s.getArtists().stream()
+                    .map(this::toArtistDTO) // Tái sử dụng hàm toArtistDTO
+                    .collect(Collectors.toSet()));
+        } else {
+            dto.setArtists(Collections.emptySet());
+        }
+
+        // Map danh sách Tags (Thay vì label)
+        if (s.getTags() != null) {
+            dto.setTags(s.getTags().stream()
+                    .map(t -> new TagDTO(t.getId(), t.getName(), t.getDescription()))
+                    .collect(Collectors.toSet()));
+        } else {
+            dto.setTags(Collections.emptySet());
+        }
+
         return dto;
     }
 
+    // Mapping Artist Entity -> DTO
     private ArtistDTO toArtistDTO(Artist a) {
-        ArtistDTO dto = new ArtistDTO();
-        dto.setId(a.getId());
-        dto.setName(a.getName());
-        dto.setImageUrl(a.getImageUrl());
-        return dto;
+        return new ArtistDTO(a.getId(), a.getName(), a.getImageUrl(), a.getSongCount());
     }
 
+    // Mapping Playlist Entity -> DTO
     private PlaylistDTO toPlaylistDTO(Playlist p) {
         PlaylistDTO dto = new PlaylistDTO();
         dto.setId(p.getId());
-        dto.setName(p.getName());
+        dto.setTitle(p.getTitle()); // Sửa name -> title
         dto.setDescription(p.getDescription());
         dto.setImageUrl(p.getImageUrl());
-        if (p.getSongs() != null) {
-            dto.setSongs(p.getSongs().stream().map(Song::getId).collect(Collectors.toSet()));
-            dto.setNumberOfSongs(p.getSongs().size());
-        } else {
-            dto.setNumberOfSongs(0);
-        }
-        dto.setListenCount((long) p.getListenCount());
-        dto.setLikeCount((long) p.getLikeCount());
-        if (p.getUser() != null) {
-            dto.setUserId(p.getUser().getId());
-        }
+        dto.setPlayCount(p.getPlayCount()); // Sửa listenCount -> playCount
+        dto.setLikeCount(p.getLikeCount());
         dto.setCreatedAt(p.getCreatedAt());
+
+        // Tính số lượng bài hát thông qua bảng trung gian PlaylistSong
+        if (p.getPlaylistSongs() != null) {
+            dto.setSongCount(p.getPlaylistSongs().size());
+        } else {
+            dto.setSongCount(0);
+        }
+
+        // Lấy tên người tạo (User -> Owner)
+        if (p.getOwner() != null) {
+            dto.setOwnerName(p.getOwner().getDisplayName());
+        }
+
         return dto;
     }
 }

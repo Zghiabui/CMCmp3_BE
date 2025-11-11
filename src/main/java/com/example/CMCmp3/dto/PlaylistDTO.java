@@ -1,33 +1,22 @@
 package com.example.CMCmp3.dto;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
-import jakarta.validation.constraints.NotBlank;
+import lombok.AllArgsConstructor;
 import lombok.Data;
-
+import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
-import java.util.Set;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class PlaylistDTO {
-
-    private String id;
-
-    @NotBlank(message = "Tên playlist không được để trống")
-    private String name;
-
+    private Long id;
+    private String title;
     private String description;
-
     private String imageUrl;
-
-    private Set<String> songs;
-
-    private int numberOfSongs;
-
-    private Long listenCount;
+    private Long playCount;
     private Long likeCount;
-
-    private Long userId;
-
-    @JsonFormat(pattern = "yyyy-MM-dd")
+    private Long commentCount;
+    private int songCount; // Số lượng bài hát trong playlist
+    private String ownerName; // Tên người tạo
     private LocalDateTime createdAt;
 }
