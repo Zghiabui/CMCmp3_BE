@@ -1,21 +1,30 @@
 package com.example.CMCmp3.service;
 
-import com.example.CMCmp3.dto.SongDTO;
-import com.example.CMCmp3.dto.TopSongDTO;
+import com.example.CMCmp3.dto.*;
+import com.example.CMCmp3.entity.Artist;
 import com.example.CMCmp3.entity.Song;
+import com.example.CMCmp3.entity.Tag;
+import com.example.CMCmp3.repository.ArtistRepository;
 import com.example.CMCmp3.repository.SongRepository;
+import com.example.CMCmp3.repository.TagRepository;
+import com.mpatric.mp3agic.Mp3File;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,49 +32,169 @@ import java.util.stream.Collectors;
 public class SongService {
 
     private final SongRepository songRepository;
+    private final ArtistRepository artistRepository;
+    private final TagRepository tagRepository;
 
-    /* ========= READ ========= */
+    // =================================================================
+    // 1. HELPERS: FETCHING & CALCULATION (Logic phụ trợ)
+    // =================================================================
+
+    /**
+     * Helper: Lấy danh sách Artist Entity từ Set<Long> ID
+     */
+    private Set<Artist> fetchArtistsByIds(Set<Long> artistIds) {
+        if (artistIds == null || artistIds.isEmpty()) {
+            return new HashSet<>();
+        }
+        return new HashSet<>(artistRepository.findAllById(artistIds));
+    }
+
+    /**
+     * Helper: Lấy danh sách Tag Entity từ Set<Long> ID
+     */
+    private Set<Tag> fetchTagsByIds(Set<Long> tagIds) {
+        if (tagIds == null || tagIds.isEmpty()) {
+            return new HashSet<>();
+        }
+        return new HashSet<>(tagRepository.findAllById(tagIds));
+    }
+
+    /**
+     * Helper: Tính Duration từ file MP3 (Local hoặc URL)
+     * Sử dụng thư viện mp3agic
+     */
+    private int calculateDuration(String filePath) {
+        File tempFile = null;
+        try {
+            File fileToRead;
+            // Nếu là URL (Firebase/Cloud), phải tải về file tạm mới đọc được metadata
+            if (filePath.startsWith("http://") || filePath.startsWith("https://")) {
+                tempFile = File.createTempFile("song_duration_calc_", ".mp3");
+                try (InputStream in = new URL(filePath).openStream();
+                     FileOutputStream out = new FileOutputStream(tempFile)) {
+                    byte[] buffer = new byte[1024];
+                    int bytesRead;
+                    while ((bytesRead = in.read(buffer)) != -1) {
+                        out.write(buffer, 0, bytesRead);
+                    }
+                }
+                fileToRead = tempFile;
+            } else {
+                // Nếu là đường dẫn local
+                fileToRead = new File(filePath);
+            }
+
+            if (fileToRead.exists()) {
+                Mp3File mp3File = new Mp3File(fileToRead);
+                return (int) mp3File.getLengthInSeconds();
+            }
+            return 0;
+        } catch (Exception e) {
+            System.err.println("Warning: Không thể tính duration cho file: " + filePath + ". Lỗi: " + e.getMessage());
+            return 0;
+        } finally {
+            // Quan trọng: Xóa file tạm sau khi dùng xong
+            if (tempFile != null && tempFile.exists()) {
+                tempFile.delete();
+            }
+        }
+    }
+
+    // =================================================================
+    // 2. HELPERS: MAPPERS (Chuyển đổi dữ liệu)
+    // =================================================================
+
+    /**
+     * Convert: Entity -> DTO (Response)
+     */
+    private SongDTO toDTO(Song s) {
+        SongDTO dto = new SongDTO();
+        dto.setId(s.getId());
+        dto.setTitle(s.getTitle());
+        dto.setDuration(s.getDuration());
+        dto.setFilePath(s.getFilePath());
+        dto.setImageUrl(s.getImageUrl());
+        dto.setListenCount(s.getListenCount());
+        dto.setLikeCount(s.getLikeCount());
+        dto.setDescription(s.getDescription());
+        dto.setCreatedAt(s.getCreatedAt());
+
+        // Map danh sách Ca sĩ
+        if (s.getArtists() != null) {
+            Set<ArtistDTO> artistDTOS = s.getArtists().stream()
+                    .map(a -> new ArtistDTO(a.getId(), a.getName(), a.getImageUrl(), a.getSongCount()))
+                    .collect(Collectors.toSet());
+            dto.setArtists(artistDTOS);
+        } else {
+            dto.setArtists(Collections.emptySet());
+        }
+
+        // Map danh sách Thể loại (Tag)
+        if (s.getTags() != null) {
+            Set<TagDTO> tagDTOS = s.getTags().stream()
+                    .map(t -> {
+                        TagDTO tDto = new TagDTO();
+                        tDto.setId(t.getId());
+                        tDto.setName(t.getName());
+                        return tDto;
+                    })
+                    .collect(Collectors.toSet());
+            dto.setTags(tagDTOS);
+        } else {
+            dto.setTags(Collections.emptySet());
+        }
+
+        return dto;
+    }
+
+    /**
+     * Convert: CreateDTO -> Entity (Dùng khi tạo mới)
+     */
+    private Song convertToEntity(CreateSongDTO dto) {
+        Song song = new Song();
+        song.setTitle(dto.getTitle());
+        song.setFilePath(dto.getFilePath());
+        song.setImageUrl(dto.getImageUrl());
+        song.setDescription(dto.getDescription());
+
+        // Giá trị mặc định
+        song.setListenCount(0L);
+        song.setLikeCount(0L);
+
+        // Gọi Helper để lấy Entity từ ID
+        song.setArtists(fetchArtistsByIds(dto.getArtistIds()));
+        song.setTags(fetchTagsByIds(dto.getTagIds()));
+
+        // Gọi Helper tính Duration
+        song.setDuration(calculateDuration(dto.getFilePath()));
+
+        return song;
+    }
+
+    // =================================================================
+    // 3. READ OPERATIONS (Đọc dữ liệu)
+    // =================================================================
 
     @Transactional(readOnly = true)
-    public List<SongDTO> getAll(org.springframework.data.domain.Sort sort) {
-        return songRepository.findAll(sort)
-                .stream()
-                .map(this::toDTO)
-                .collect(Collectors.toList());
+    public Page<SongDTO> getAllSongs(Pageable pageable) {
+        return songRepository.findAll(pageable).map(this::toDTO);
     }
 
     @Transactional(readOnly = true)
-    public SongDTO getById(String id) {
+    public SongDTO getById(Long id) {
         Song song = songRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Song not found: " + id));
         return toDTO(song);
     }
 
     @Transactional(readOnly = true)
-    public List<TopSongDTO> getTopSongs(int limit) {
-        return songRepository.findTopByListenCount(PageRequest.of(0, Math.max(1, limit)));
-    }
-
-    @Transactional(readOnly = true)
-    public List<TopSongDTO> getTopSongsByReleaseDate(int limit) {
-        return songRepository.findTopByCreatedAt(PageRequest.of(0, Math.max(1, limit)));
-    }
-
-    @Transactional(readOnly = true)
-    public List<TopSongDTO> getTopSongsByLikes(int limit) {
-        return songRepository.findTopByLikeCount(PageRequest.of(0, Math.max(1, limit)));
-    }
-
-    @Transactional(readOnly = true)
-    public Resource getSongFile(String id) {
+    public Resource getSongFile(Long id) {
         Song song = songRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Song not found: " + id));
-
-        String filePath = song.getFilePath();
         try {
-            Path file = Paths.get(filePath);
+            Path file = Paths.get(song.getFilePath());
+            // Lưu ý: Nếu filePath là URL (http), UrlResource vẫn hoạt động tốt
             Resource resource = new UrlResource(file.toUri());
-
             if (resource.exists() || resource.isReadable()) {
                 return resource;
             } else {
@@ -76,28 +205,70 @@ public class SongService {
         }
     }
 
-    /* ========= MAPPING (Entity -> DTO) ========= */
+    // --- TOP CHARTS (Sử dụng logic Repository trả về List Entity) ---
 
-    private SongDTO toDTO(Song s) {
-        SongDTO dto = new SongDTO();
-
-        // Entity.id (String) -> DTO.id (String)
-        dto.setId(s.getId());
-
-        dto.setTitle(s.getTitle());
-        if (s.getArtist() != null) {
-            dto.setArtist(s.getArtist().getName());
-        }
-        dto.setImageUrl(s.getImageUrl());
-        dto.setFilePath(s.getFilePath());
-        dto.setListenCount(s.getListenCount());
-        dto.setLikeCount(s.getLikeCount());
-        dto.setDescription(s.getDescription());
-        dto.setLabel(s.getLabel());
-        dto.setCreatedAt(s.getCreatedAt());
-
-        return dto;
+    @Transactional(readOnly = true)
+    public List<SongDTO> getTopSongs(int limit) {
+        return songRepository.findTopByListenCount(PageRequest.of(0, limit))
+                .stream().map(this::toDTO).collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<SongDTO> getTopNewReleases(int limit) {
+        return songRepository.findTopByCreatedAt(PageRequest.of(0, limit))
+                .stream().map(this::toDTO).collect(Collectors.toList());
+    }
 
+    @Transactional(readOnly = true)
+    public List<SongDTO> getTopMostLiked(int limit) {
+        return songRepository.findTopByLikeCount(PageRequest.of(0, limit))
+                .stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
+    // =================================================================
+    // 4. WRITE OPERATIONS (Ghi dữ liệu)
+    // =================================================================
+
+    @Transactional
+    public SongDTO createSong(CreateSongDTO createSongDTO) {
+        Song song = convertToEntity(createSongDTO);
+        Song savedSong = songRepository.save(song);
+        return toDTO(savedSong);
+    }
+
+    @Transactional
+    public SongDTO updateSong(Long id, CreateSongDTO updateDTO) {
+        Song song = songRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Song not found: " + id));
+
+        // 1. Cập nhật thông tin cơ bản (Partial Update - check null)
+        if (updateDTO.getTitle() != null) song.setTitle(updateDTO.getTitle());
+        if (updateDTO.getDescription() != null) song.setDescription(updateDTO.getDescription());
+        if (updateDTO.getImageUrl() != null) song.setImageUrl(updateDTO.getImageUrl());
+
+        // 2. Cập nhật File & Duration (Nếu file thay đổi thì tính lại duration)
+        if (updateDTO.getFilePath() != null && !updateDTO.getFilePath().equals(song.getFilePath())) {
+            song.setFilePath(updateDTO.getFilePath());
+            song.setDuration(calculateDuration(updateDTO.getFilePath()));
+        }
+
+        // 3. Cập nhật Quan hệ (Sử dụng Helper)
+        if (updateDTO.getArtistIds() != null) {
+            song.setArtists(fetchArtistsByIds(updateDTO.getArtistIds()));
+        }
+        if (updateDTO.getTagIds() != null) {
+            song.setTags(fetchTagsByIds(updateDTO.getTagIds()));
+        }
+
+        Song updatedSong = songRepository.save(song);
+        return toDTO(updatedSong);
+    }
+
+    @Transactional
+    public void deleteSong(Long id) {
+        if (!songRepository.existsById(id)) {
+            throw new NoSuchElementException("Song not found: " + id);
+        }
+        songRepository.deleteById(id);
+    }
 }
