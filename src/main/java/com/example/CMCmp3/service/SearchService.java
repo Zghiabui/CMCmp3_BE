@@ -60,7 +60,16 @@ public class SearchService {
         dto.setTitle(s.getTitle());
         dto.setDuration(s.getDuration());
         dto.setFilePath(s.getFilePath());
-        dto.setImageUrl(s.getImageUrl());
+        
+        // Construct full URL for image
+        if (s.getImageUrl() != null && !s.getImageUrl().isEmpty()) {
+            // Assuming BASE_URL is defined or accessible. For simplicity, hardcoding it here.
+            String baseUrl = "http://localhost:8080/";
+            dto.setImageUrl(baseUrl + s.getImageUrl());
+        } else {
+            dto.setImageUrl(null); // Or a default image URL
+        }
+
         dto.setListenCount(s.getListenCount());
         dto.setLikeCount(s.getLikeCount());
         dto.setDescription(s.getDescription());

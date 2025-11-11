@@ -41,6 +41,8 @@ public class SongService {
     private final UserRepository userRepository;
     private final SongLikeRepository songLikeRepository;
 
+    private static final String BASE_URL = "http://localhost:8080/"; // Or configure via application.properties
+
     // =================================================================
     // 1. HELPERS: FETCHING & CALCULATION (Logic phụ trợ)
     // =================================================================
@@ -118,8 +120,15 @@ public class SongService {
         dto.setId(s.getId());
         dto.setTitle(s.getTitle());
         dto.setDuration(s.getDuration());
-        dto.setFilePath(s.getFilePath());
-        dto.setImageUrl(s.getImageUrl());
+        dto.setFilePath(s.getFilePath()); // FilePath can remain relative as it's for internal use or streaming
+        
+        // Construct full URL for image
+        if (s.getImageUrl() != null && !s.getImageUrl().isEmpty()) {
+            dto.setImageUrl(BASE_URL + s.getImageUrl());
+        } else {
+            dto.setImageUrl(null); // Or a default image URL
+        }
+        
         dto.setListenCount(s.getListenCount());
         dto.setLikeCount(s.getLikeCount());
         dto.setDescription(s.getDescription());
