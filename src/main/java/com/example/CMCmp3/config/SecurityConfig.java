@@ -77,6 +77,7 @@ public class SecurityConfig {
 
                         // Admin only
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/user/admin/users").hasRole("ADMIN")
 
                         // Preflight
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()

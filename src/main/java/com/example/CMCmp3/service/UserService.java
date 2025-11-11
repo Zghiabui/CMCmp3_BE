@@ -5,6 +5,10 @@ import com.example.CMCmp3.dto.UserDTO;
 import com.example.CMCmp3.entity.*;
 import com.example.CMCmp3.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,7 +50,7 @@ public class UserService {
         if (existingOpt.isPresent()) {
             User existing = existingOpt.get();
 
-            if (existing.getStatus() == UserStatus.ACTIVE) {
+            if (existing.getStatus() != UserStatus.ACTIVE) {
                 throw new RuntimeException("Email đã được sử dụng.");
             }
 
@@ -94,9 +98,12 @@ public class UserService {
     /* ========= ADMIN / LIST ========= */
 
     @Transactional(readOnly = true)
-    public List<UserDTO> getAllUsers() {
-        return userRepository.findAll(org.springframework.data.domain.Sort.by("id").ascending())
-                .stream().map(this::toDTO).toList();
+    public Page<UserDTO> getAllUsers(Pageable pageable) {
+        if (pageable.getSort().isUnsorted()) {
+            pageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by("createdAt").descending());
+        }
+        return userRepository.findAll(pageable)
+                .map(this::toDTO);
     }
 
     @Transactional
@@ -157,7 +164,7 @@ public class UserService {
         dto.setDisplayName(u.getDisplayName());
         dto.setEmail(u.getEmail());
         dto.setPhone(u.getPhone());               // ✅ phone cho FE
-        dto.setRole(u.getRole().name());
+        dto.setRole(List.of(u.getRole().name()));
         dto.setCreatedAt(u.getCreatedAt());
         return dto;
     }

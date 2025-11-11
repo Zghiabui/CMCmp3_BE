@@ -3,6 +3,8 @@ package com.example.CMCmp3.controller;
 import com.example.CMCmp3.dto.UserDTO;
 import com.example.CMCmp3.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,8 +20,8 @@ public class AdminUserController {
 
     /** GET /api/admin/users -> trả về danh sách người dùng (có phone) */
     @GetMapping
-    public List<UserDTO> list() {
-        return userService.getAllUsers();
+    public Page<UserDTO> list(Pageable pageable) {
+        return userService.getAllUsers(pageable);
     }
 
     /** PUT /api/admin/users/{id}/phone -> cập nhật số điện thoại */
