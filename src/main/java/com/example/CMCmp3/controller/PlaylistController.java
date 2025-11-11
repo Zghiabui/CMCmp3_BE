@@ -43,6 +43,12 @@ public class PlaylistController {
         return ResponseEntity.ok(playlistService.getTopNewPlaylists(limit));
     }
 
+    // API Top Lượt thích
+    @GetMapping("/top/likes")
+    public ResponseEntity<List<PlaylistDTO>> getTopLikes(@RequestParam(defaultValue = "10") int limit) {
+        return ResponseEntity.ok(playlistService.getTopPlaylistsByLikeCount(limit));
+    }
+
     // Tạo mới
     @PostMapping
     @PreAuthorize("isAuthenticated()")

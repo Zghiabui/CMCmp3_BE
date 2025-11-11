@@ -73,6 +73,12 @@ public class PlaylistService {
     }
 
     @Transactional(readOnly = true)
+    public List<PlaylistDTO> getTopPlaylistsByLikeCount(int limit) {
+        return playlistRepository.findTopByLikeCount(PageRequest.of(0, limit))
+                .stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public List<PlaylistDTO> getTopNewPlaylists(int limit) {
         return playlistRepository.findTopByCreatedAt(PageRequest.of(0, limit))
                 .stream().map(this::toDTO).collect(Collectors.toList());
