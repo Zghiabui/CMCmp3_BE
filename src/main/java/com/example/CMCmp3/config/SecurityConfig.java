@@ -19,7 +19,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -53,44 +52,27 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
-                // ❗ Trả 401 JSON cho mọi đường dẫn /api/** khi chưa xác thực (không redirect OAuth2)
                 .exceptionHandling(ex -> ex
-                        .defaultAuthenticationEntryPointFor(
-                                new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
-                                new AntPathRequestMatcher("/api/**")
-                        )
+                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
                 )
 
                 .authorizeHttpRequests(auth -> auth
-                        // Public auth & OAuth2
                         .requestMatchers("/api/auth/**", "/login/oauth2/**", "/oauth2/redirect/**").permitAll()
 
-                        // Public GET data
                         .requestMatchers("/api/charts/realtime").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/songs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/playlists/**").permitAll()
                         .requestMatchers("/api/search").permitAll()
+                        .requestMatchers("/images/**").permitAll() // Cho phép truy cập ảnh avatar
 
-                        // Stream audio (nếu có)
-                        .requestMatchers("/api/songs/stream/**").permitAll()
-
-                        // Admin only
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/user/admin/users").hasRole("ADMIN")
 
-                        // Preflight
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // User info
-                        .requestMatchers("/api/me").authenticated()
+                        .requestMatchers("/api/users/me/**").authenticated() // /me và các đường dẫn con (avatar)
+                        .requestMatchers(HttpMethod.POST, "/api/playlists").authenticated() // Tạo playlist
+                        .requestMatchers(HttpMethod.DELETE, "/api/playlists/**").authenticated() // Xóa playlist
 
-                        // Mặc định: yêu cầu đăng nhập
-                        .requestMatchers("/api/playlists/{id}").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/playlists/**").permitAll()
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/images/**").permitAll()
-                        .requestMatchers("/api/me/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(o -> o.successHandler(oAuth2AuthenticationSuccessHandler))

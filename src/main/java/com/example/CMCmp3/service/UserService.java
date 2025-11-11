@@ -13,7 +13,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -29,11 +28,9 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -42,12 +39,8 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    /* ========= REGISTER / AUTH ========= */
-
-    @Transactional
     @Value("${file.upload-dir}")
     private String uploadDir;
-
     private Path fileStorageLocation;
 
     @PostConstruct
@@ -60,43 +53,53 @@ public class UserService {
         }
     }
 
+    private UserDTO convertToDTO(User u) {
+        return new UserDTO(
+                u.getId(),
+                u.getEmail(),
+                u.getDisplayName(),
+                u.getGender(),
+                u.getPhone(),       // Entity 'phone' -> DTO 'phoneNumber' (khớp vị trí constructor)
+                u.getAvatarUrl(),
+                Set.of(u.getRole().name()) // Dùng Set<String> khớp với DTO
+        );
+    }
+
+    private User getCurrentUser(Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof UserDetails userDetails)) {
+            throw new RuntimeException("User not authenticated");
+        }
+        return userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
     public User registerUser(RegisterDTO registerDTO) {
-        // normalize
+        // (Giữ nguyên logic register của bạn)
         final String email = safeLower(registerDTO.getEmail());
         final String displayName = safeTrim(registerDTO.getDisplayName());
         final String phone = safeTrim(registerDTO.getPhone());
         final String avatarUrl = safeTrim(registerDTO.getAvatarUrl());
 
-        // email bắt buộc
         if (!StringUtils.hasText(email)) {
             throw new RuntimeException("Email không được để trống");
         }
-
-        // phone (nếu có) thì phải duy nhất
         if (StringUtils.hasText(phone) && userRepository.existsByPhone(phone)) {
             throw new RuntimeException("Số điện thoại đã được sử dụng");
         }
-
         var existingOpt = userRepository.findByEmailIgnoreCase(email);
         if (existingOpt.isPresent()) {
             User existing = existingOpt.get();
-
             if (existing.getStatus() != UserStatus.ACTIVE) {
                 throw new RuntimeException("Email đã được sử dụng.");
             }
-
-            // Khôi phục tài khoản DEACTIVE
-            updateUserFromDTO(existing, displayName, email, phone, avatarUrl,
-                    registerDTO.getDob(), registerDTO.getGender());
+            updateUserFromDTO(existing, displayName, email, phone, avatarUrl, registerDTO.getDob(), registerDTO.getGender());
             existing.setPassword(passwordEncoder.encode(registerDTO.getPassword()));
             existing.setStatus(UserStatus.ACTIVE);
             existing.setRole(Role.USER);
             existing.setProvider(AuthProvider.LOCAL);
-
             return userRepository.save(existing);
         }
 
-        // Tạo mới
         String username = generateUniqueUsername(displayName);
         User user = User.builder()
                 .username(username)
@@ -105,10 +108,7 @@ public class UserService {
                 .status(UserStatus.ACTIVE)
                 .provider(AuthProvider.LOCAL)
                 .build();
-
-        updateUserFromDTO(user, displayName, email, phone, avatarUrl,
-                registerDTO.getDob(), registerDTO.getGender());
-
+        updateUserFromDTO(user, displayName, email, phone, avatarUrl, registerDTO.getDob(), registerDTO.getGender());
         return userRepository.save(user);
     }
 
@@ -116,7 +116,6 @@ public class UserService {
         String email = safeLower(emailRaw);
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Email không tồn tại"));
-
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new RuntimeException("Tài khoản đã bị vô hiệu hóa");
         }
@@ -126,15 +125,48 @@ public class UserService {
         return user;
     }
 
-    /* ========= ADMIN / LIST ========= */
+    public UserDTO getMe(Authentication authentication) {
+        User user = getCurrentUser(authentication);
+        return convertToDTO(user); // Dùng hàm convert chuẩn
+    }
+
+    public UserDTO updateMe(Authentication authentication, UpdateUserDTO userDTO) {
+        User user = getCurrentUser(authentication);
+        user.setDisplayName(userDTO.getDisplayName());
+        user.setGender(userDTO.getGender());
+        user.setPhone(userDTO.getPhoneNumber()); // Map từ phoneNumber DTO -> phone Entity
+        User updatedUser = userRepository.save(user);
+        return convertToDTO(updatedUser); // Dùng hàm convert chuẩn
+    }
+
+    public UserDTO updateAvatar(Authentication authentication, MultipartFile file) {
+        User user = getCurrentUser(authentication);
+        String fileName = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
+        try {
+            if (fileName.contains("..")) {
+                throw new RuntimeException("Sorry! Filename contains invalid path sequence " + fileName);
+            }
+            String newFileName = UUID.randomUUID().toString() + "_" + fileName;
+            Path targetLocation = this.fileStorageLocation.resolve(newFileName);
+            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+
+            String fileDownloadUri = ServletUriComponentsBuilder.fromCurrentContextPath()
+                    .path("/images/")
+                    .path(newFileName)
+                    .toUriString();
+
+            user.setAvatarUrl(fileDownloadUri);
+            User updatedUser = userRepository.save(user);
+            return convertToDTO(updatedUser); // Dùng hàm convert chuẩn
+        } catch (IOException ex) {
+            throw new RuntimeException("Could not store file " + fileName + ". Please try again!", ex);
+        }
+    }
+
 
     @Transactional(readOnly = true)
     public Page<UserDTO> getAllUsers(Pageable pageable) {
-        if (pageable.getSort().isUnsorted()) {
-            pageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by("createdAt").descending());
-        }
-        return userRepository.findAll(pageable)
-                .map(this::toDTO);
+        return userRepository.findAll(pageable).map(this::convertToDTO);
     }
 
     @Transactional
@@ -149,28 +181,18 @@ public class UserService {
         userRepository.save(u);
     }
 
-    /* ========= HELPERS ========= */
-
     private void updateUserFromDTO(
-            User user,
-            String displayName,
-            String email,
-            String phone,
-            String avatarUrl,
-            String dob,
-            String gender
-    ) {
+            User user, String displayName, String email, String phone,
+            String avatarUrl, String dob, String gender) {
         user.setDisplayName(displayName);
         user.setEmail(email);
         user.setPhone(phone);
         user.setAvatarUrl(avatarUrl);
-
         if (StringUtils.hasText(dob)) {
             try {
                 user.setDob(LocalDate.parse(dob, DateTimeFormatter.ISO_LOCAL_DATE));
             } catch (Exception ignored) {}
         }
-
         if (StringUtils.hasText(gender)) {
             try {
                 user.setGender(Gender.valueOf(gender.trim().toUpperCase()));
@@ -189,89 +211,11 @@ public class UserService {
         return username;
     }
 
-    private UserDTO toDTO(User u) {
-        UserDTO dto = new UserDTO();
-        dto.setId(u.getId());
-        dto.setDisplayName(u.getDisplayName());
-        dto.setEmail(u.getEmail());
-        dto.setPhone(u.getPhone());               // ✅ phone cho FE
-        dto.setRole(List.of(u.getRole().name()));
-        dto.setCreatedAt(u.getCreatedAt());
-        return dto;
-    }
-
     private static String safeTrim(String s) {
         return s == null ? null : s.trim();
     }
 
     private static String safeLower(String s) {
         return s == null ? null : s.trim().toLowerCase();
-    }
-}
-
-    private User getCurrentUser(Authentication authentication) {
-        if (authentication == null || !(authentication.getPrincipal() instanceof UserDetails userDetails)) {
-            throw new RuntimeException("User not authenticated");
-        }
-        return userRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-    }
-
-    private UserDTO mapToUserDTO(User user) {
-        Set<String> roles = user.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .collect(Collectors.toSet());
-
-        return new UserDTO(
-                user.getId(),
-                user.getEmail(),
-                user.getDisplayName(),
-                user.getGender(),
-                user.getPhone(),
-                user.getAvatarUrl(),
-                roles
-        );
-    }
-
-    public UserDTO getMe(Authentication authentication) {
-        User user = getCurrentUser(authentication);
-        return mapToUserDTO(user);
-    }
-
-    public UserDTO updateMe(Authentication authentication, UpdateUserDTO userDTO) {
-        User user = getCurrentUser(authentication);
-        user.setDisplayName(userDTO.getDisplayName());
-        user.setGender(userDTO.getGender());
-        user.setPhone(userDTO.getPhoneNumber());
-        User updatedUser = userRepository.save(user);
-        return mapToUserDTO(updatedUser);
-    }
-
-    public UserDTO updateAvatar(Authentication authentication, MultipartFile file) {
-        User user = getCurrentUser(authentication);
-
-        String fileName = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
-
-        try {
-            if (fileName.contains("..")) {
-                throw new RuntimeException("Sorry! Filename contains invalid path sequence " + fileName);
-            }
-
-            String newFileName = UUID.randomUUID().toString() + "_" + fileName;
-            Path targetLocation = this.fileStorageLocation.resolve(newFileName);
-            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
-
-            String fileDownloadUri = ServletUriComponentsBuilder.fromCurrentContextPath()
-                    .path("/images/") // Assuming you have a controller to serve images from this path
-                    .path(newFileName)
-                    .toUriString();
-
-            user.setAvatarUrl(fileDownloadUri);
-            User updatedUser = userRepository.save(user);
-            return mapToUserDTO(updatedUser);
-
-        } catch (IOException ex) {
-            throw new RuntimeException("Could not store file " + fileName + ". Please try again!", ex);
-        }
     }
 }
