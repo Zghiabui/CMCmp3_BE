@@ -12,7 +12,9 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "users", uniqueConstraints = {
@@ -75,6 +77,12 @@ public class User implements UserDetails {
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "uploader", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<Song> uploadedSongs = new HashSet<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<SongLike> likedSongs = new HashSet<>();
 
     // Spring Security
     @Override
