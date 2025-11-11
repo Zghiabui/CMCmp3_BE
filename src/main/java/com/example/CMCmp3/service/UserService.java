@@ -7,12 +7,16 @@ import com.example.CMCmp3.entity.*;
 import com.example.CMCmp3.repository.UserRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -27,7 +31,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -38,7 +41,6 @@ public class UserService {
 
     @Value("${file.upload-dir}")
     private String uploadDir;
-
     private Path fileStorageLocation;
 
     @PostConstruct
@@ -51,88 +53,16 @@ public class UserService {
         }
     }
 
-    public User registerUser(RegisterDTO registerDTO) {
-        // Kiểm tra nếu email đã tồn tại
-        var existingUserOpt = userRepository.findByEmailIgnoreCase(registerDTO.getEmail());
-
-        if (existingUserOpt.isPresent()) {
-            User existingUser = existingUserOpt.get();
-
-            if (existingUser.getStatus() == UserStatus.ACTIVE) {
-                throw new RuntimeException("Email đã được sử dụng.");
-            }
-
-            // Nếu tài khoản DEACTIVE → khôi phục và cập nhật
-            updateUserFromDTO(existingUser, registerDTO);
-            existingUser.setPassword(passwordEncoder.encode(registerDTO.getPassword()));
-            existingUser.setStatus(UserStatus.ACTIVE);
-            existingUser.setRole(Role.USER);
-            existingUser.setProvider(AuthProvider.LOCAL); // ⬅ ADDED
-            return userRepository.save(existingUser);
-        }
-
-        // Tạo tài khoản mới
-        String generatedUsername = generateUniqueUsername(registerDTO.getDisplayName());
-
-        User newUser = User.builder()
-                .username(generatedUsername)
-                .password(passwordEncoder.encode(registerDTO.getPassword()))
-                .role(Role.USER)
-                .status(UserStatus.ACTIVE)
-                .provider(AuthProvider.LOCAL) // ⬅ ADDED
-                .build();
-
-        updateUserFromDTO(newUser, registerDTO);
-
-        return userRepository.save(newUser);
-    }
-
-    private void updateUserFromDTO(User user, RegisterDTO dto) {
-        user.setDisplayName(dto.getDisplayName());
-        user.setEmail(dto.getEmail());
-        user.setPhone(dto.getPhone());
-        user.setAvatarUrl(dto.getAvatarUrl());
-
-        if (StringUtils.hasText(dto.getDob())) {
-            try {
-                user.setDob(LocalDate.parse(dto.getDob(), DateTimeFormatter.ISO_LOCAL_DATE));
-            } catch (Exception e) {
-                // Xử lý lỗi nếu định dạng ngày không hợp lệ, có thể log hoặc bỏ qua
-            }
-        }
-
-        if (StringUtils.hasText(dto.getGender())) {
-            try {
-                user.setGender(Gender.valueOf(dto.getGender().toUpperCase()));
-            } catch (IllegalArgumentException e) {
-                // Xử lý nếu giá trị gender không hợp lệ
-            }
-        }
-    }
-
-    private String generateUniqueUsername(String base) {
-        String cleanBase = base.replaceAll("[^\\p{L}0-9]", "").toLowerCase();
-        String username;
-        do {
-            String suffix = UUID.randomUUID().toString().substring(0, 6);
-            username = cleanBase + suffix;
-        } while (userRepository.existsByUsername(username));
-        return username;
-    }
-
-    public User authenticate(String email, String rawPassword) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Email không tồn tại"));
-
-        if (user.getStatus() != UserStatus.ACTIVE) {
-            throw new RuntimeException("Tài khoản đã bị vô hiệu hóa");
-        }
-
-        if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
-            throw new RuntimeException("Mật khẩu không đúng");
-        }
-
-        return user;
+    private UserDTO convertToDTO(User u) {
+        return new UserDTO(
+                u.getId(),
+                u.getEmail(),
+                u.getDisplayName(),
+                u.getGender(),
+                u.getPhone(),       // Entity 'phone' -> DTO 'phoneNumber' (khớp vị trí constructor)
+                u.getAvatarUrl(),
+                Set.of(u.getRole().name()) // Dùng Set<String> khớp với DTO
+        );
     }
 
     private User getCurrentUser(Authentication authentication) {
@@ -143,61 +73,149 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
-    private UserDTO mapToUserDTO(User user) {
-        Set<String> roles = user.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .collect(Collectors.toSet());
+    public User registerUser(RegisterDTO registerDTO) {
+        // (Giữ nguyên logic register của bạn)
+        final String email = safeLower(registerDTO.getEmail());
+        final String displayName = safeTrim(registerDTO.getDisplayName());
+        final String phone = safeTrim(registerDTO.getPhone());
+        final String avatarUrl = safeTrim(registerDTO.getAvatarUrl());
 
-        return new UserDTO(
-                user.getId(),
-                user.getEmail(),
-                user.getDisplayName(),
-                user.getGender(),
-                user.getPhone(),
-                user.getAvatarUrl(),
-                roles
-        );
+        if (!StringUtils.hasText(email)) {
+            throw new RuntimeException("Email không được để trống");
+        }
+        if (StringUtils.hasText(phone) && userRepository.existsByPhone(phone)) {
+            throw new RuntimeException("Số điện thoại đã được sử dụng");
+        }
+        var existingOpt = userRepository.findByEmailIgnoreCase(email);
+        if (existingOpt.isPresent()) {
+            User existing = existingOpt.get();
+            if (existing.getStatus() != UserStatus.ACTIVE) {
+                throw new RuntimeException("Email đã được sử dụng.");
+            }
+            updateUserFromDTO(existing, displayName, email, phone, avatarUrl, registerDTO.getDob(), registerDTO.getGender());
+            existing.setPassword(passwordEncoder.encode(registerDTO.getPassword()));
+            existing.setStatus(UserStatus.ACTIVE);
+            existing.setRole(Role.USER);
+            existing.setProvider(AuthProvider.LOCAL);
+            return userRepository.save(existing);
+        }
+
+        String username = generateUniqueUsername(displayName);
+        User user = User.builder()
+                .username(username)
+                .password(passwordEncoder.encode(registerDTO.getPassword()))
+                .role(Role.USER)
+                .status(UserStatus.ACTIVE)
+                .provider(AuthProvider.LOCAL)
+                .build();
+        updateUserFromDTO(user, displayName, email, phone, avatarUrl, registerDTO.getDob(), registerDTO.getGender());
+        return userRepository.save(user);
+    }
+
+    public User authenticate(String emailRaw, String rawPassword) {
+        String email = safeLower(emailRaw);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Email không tồn tại"));
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new RuntimeException("Tài khoản đã bị vô hiệu hóa");
+        }
+        if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
+            throw new RuntimeException("Mật khẩu không đúng");
+        }
+        return user;
     }
 
     public UserDTO getMe(Authentication authentication) {
         User user = getCurrentUser(authentication);
-        return mapToUserDTO(user);
+        return convertToDTO(user); // Dùng hàm convert chuẩn
     }
 
     public UserDTO updateMe(Authentication authentication, UpdateUserDTO userDTO) {
         User user = getCurrentUser(authentication);
         user.setDisplayName(userDTO.getDisplayName());
         user.setGender(userDTO.getGender());
-        user.setPhone(userDTO.getPhoneNumber());
+        user.setPhone(userDTO.getPhoneNumber()); // Map từ phoneNumber DTO -> phone Entity
         User updatedUser = userRepository.save(user);
-        return mapToUserDTO(updatedUser);
+        return convertToDTO(updatedUser); // Dùng hàm convert chuẩn
     }
 
     public UserDTO updateAvatar(Authentication authentication, MultipartFile file) {
         User user = getCurrentUser(authentication);
-
         String fileName = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
-
         try {
             if (fileName.contains("..")) {
                 throw new RuntimeException("Sorry! Filename contains invalid path sequence " + fileName);
             }
-
             String newFileName = UUID.randomUUID().toString() + "_" + fileName;
             Path targetLocation = this.fileStorageLocation.resolve(newFileName);
             Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
 
             String fileDownloadUri = ServletUriComponentsBuilder.fromCurrentContextPath()
-                    .path("/images/") // Assuming you have a controller to serve images from this path
+                    .path("/images/")
                     .path(newFileName)
                     .toUriString();
 
             user.setAvatarUrl(fileDownloadUri);
             User updatedUser = userRepository.save(user);
-            return mapToUserDTO(updatedUser);
-
+            return convertToDTO(updatedUser); // Dùng hàm convert chuẩn
         } catch (IOException ex) {
             throw new RuntimeException("Could not store file " + fileName + ". Please try again!", ex);
         }
+    }
+
+
+    @Transactional(readOnly = true)
+    public Page<UserDTO> getAllUsers(Pageable pageable) {
+        return userRepository.findAll(pageable).map(this::convertToDTO);
+    }
+
+    @Transactional
+    public void updatePhone(Long userId, String newPhone) {
+        String phone = safeTrim(newPhone);
+        if (StringUtils.hasText(phone) && userRepository.existsByPhone(phone)) {
+            throw new RuntimeException("Số điện thoại đã được sử dụng");
+        }
+        User u = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+        u.setPhone(phone);
+        userRepository.save(u);
+    }
+
+    private void updateUserFromDTO(
+            User user, String displayName, String email, String phone,
+            String avatarUrl, String dob, String gender) {
+        user.setDisplayName(displayName);
+        user.setEmail(email);
+        user.setPhone(phone);
+        user.setAvatarUrl(avatarUrl);
+        if (StringUtils.hasText(dob)) {
+            try {
+                user.setDob(LocalDate.parse(dob, DateTimeFormatter.ISO_LOCAL_DATE));
+            } catch (Exception ignored) {}
+        }
+        if (StringUtils.hasText(gender)) {
+            try {
+                user.setGender(Gender.valueOf(gender.trim().toUpperCase()));
+            } catch (IllegalArgumentException ignored) {}
+        }
+    }
+
+    private String generateUniqueUsername(String base) {
+        String cleanBase = safeTrim(base).replaceAll("[^\\p{L}0-9]", "").toLowerCase();
+        cleanBase = StringUtils.hasText(cleanBase) ? cleanBase : "user";
+        String username;
+        do {
+            String suffix = UUID.randomUUID().toString().substring(0, 6);
+            username = cleanBase + suffix;
+        } while (userRepository.existsByUsername(username));
+        return username;
+    }
+
+    private static String safeTrim(String s) {
+        return s == null ? null : s.trim();
+    }
+
+    private static String safeLower(String s) {
+        return s == null ? null : s.trim().toLowerCase();
     }
 }
