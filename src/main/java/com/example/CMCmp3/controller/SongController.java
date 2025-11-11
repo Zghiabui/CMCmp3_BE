@@ -11,12 +11,15 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/songs")
@@ -70,6 +73,20 @@ public class SongController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<SongDTO> create(@Valid @RequestBody CreateSongDTO dto) {
         return ResponseEntity.ok(songService.createSong(dto));
+    }
+
+    @PostMapping(value = "/upload", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<SongDTO> uploadSong(
+            @RequestParam("songFile") MultipartFile songFile,
+            @RequestParam("imageFile") MultipartFile imageFile,
+            @RequestParam("title") String title,
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "artistIds", required = false) Set<Long> artistIds,
+            @RequestParam(value = "tagIds", required = false) Set<Long> tagIds) {
+
+        SongDTO newSong = songService.createSongWithUpload(title, description, artistIds, tagIds, songFile, imageFile);
+        return ResponseEntity.status(HttpStatus.CREATED).body(newSong);
     }
 
     @PutMapping("/{id}")
