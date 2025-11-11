@@ -1,36 +1,65 @@
 package com.example.CMCmp3.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
-@Data
-@Builder
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 @Entity
 @Table(name = "songs")
 public class Song {
+
     @Id
-    private String id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
     private String title;
 
-    @ManyToOne
-    @JoinColumn(name = "artist_id")
-    private Artist artist;
+    private Integer duration;
 
-    private Integer duration; // in seconds
+    @Column(nullable = false)
     private String filePath;
+
     private String imageUrl;
-    private Long listenCount;
-    private Long likeCount;
-    private Boolean isFavorite;
+
+    @Column(columnDefinition = "bigint default 0")
+    private Long listenCount = 0L;
+
+    @Column(columnDefinition = "bigint default 0")
+    private Long likeCount = 0L;
+
     @Column(columnDefinition = "TEXT")
     private String description;
-    private Instant createdAt;
-    private String label;
+
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "song_artists",
+            joinColumns = @JoinColumn(name = "song_id"),
+            inverseJoinColumns = @JoinColumn(name = "artist_id")
+    )
+    private Set<Artist> artists = new HashSet<>();
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "song_tags",
+            joinColumns = @JoinColumn(name = "song_id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id")
+    )
+    private Set<Tag> tags = new HashSet<>();
 }

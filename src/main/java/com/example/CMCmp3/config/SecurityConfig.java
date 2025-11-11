@@ -86,6 +86,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/me").authenticated()
 
                         // Mặc định: yêu cầu đăng nhập
+                        .requestMatchers("/api/playlists/{id}").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/playlists/**").permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/images/**").permitAll()
+                        .requestMatchers("/api/me/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(o -> o.successHandler(oAuth2AuthenticationSuccessHandler))

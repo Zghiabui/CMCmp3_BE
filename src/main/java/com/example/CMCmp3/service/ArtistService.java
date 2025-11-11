@@ -1,7 +1,6 @@
 package com.example.CMCmp3.service;
 
-import com.example.CMCmp3.dto.ArtistDTO;
-import com.example.CMCmp3.dto.SongDTO;
+import com.example.CMCmp3.dto.*;
 import com.example.CMCmp3.entity.Artist;
 import com.example.CMCmp3.entity.Song;
 import com.example.CMCmp3.repository.ArtistRepository;
@@ -12,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -22,42 +22,124 @@ public class ArtistService {
     private final SongRepository songRepository;
 
     @Transactional(readOnly = true)
+    public List<ArtistDTO> getAllArtists() {
+        return artistRepository.findAll().stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public ArtistDTO getArtistById(Long id) {
         Artist artist = artistRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Artist not found: " + id));
         return toDTO(artist);
     }
 
+    /**
+     * Lấy danh sách bài hát của ca sĩ (Quan trọng)
+     */
     @Transactional(readOnly = true)
     public List<SongDTO> getSongsByArtistId(Long id) {
-        return songRepository.findAllByArtistId(id)
+        // Lưu ý: Trong SongRepository cần có method findAllByArtistsId(Long artistId)
+        return songRepository.findAllByArtistsId(id)
                 .stream()
                 .map(this::toSongDTO)
                 .collect(Collectors.toList());
     }
 
-    private SongDTO toSongDTO(Song s) {
-        SongDTO dto = new SongDTO();
-        dto.setId(s.getId());
-        dto.setTitle(s.getTitle());
-        if (s.getArtist() != null) {
-            dto.setArtist(s.getArtist().getName());
+    @Transactional
+    public ArtistDTO createArtist(CreateArtistDTO createDTO) {
+        // Kiểm tra trùng tên nếu cần
+        if (artistRepository.existsByName(createDTO.getName())) {
+            throw new RuntimeException("Artist name already exists: " + createDTO.getName());
         }
-        dto.setImageUrl(s.getImageUrl());
-        dto.setFilePath(s.getFilePath());
-        dto.setListenCount(s.getListenCount());
-        dto.setLikeCount(s.getLikeCount());
-        dto.setDescription(s.getDescription());
-        dto.setLabel(s.getLabel());
-        dto.setCreatedAt(s.getCreatedAt());
-        return dto;
+
+        Artist artist = new Artist();
+        artist.setName(createDTO.getName());
+        artist.setImageUrl(createDTO.getImageUrl());
+        // songCount mặc định là 0 khi tạo mới
+        artist.setSongCount(0L);
+
+        Artist savedArtist = artistRepository.save(artist);
+        return toDTO(savedArtist);
     }
+
+    @Transactional
+    public ArtistDTO updateArtist(Long id, UpdateArtistDTO updateDTO) {
+        Artist artist = artistRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Artist not found: " + id));
+
+        // Logic update một phần (Partial Update)
+        if (updateDTO.getName() != null && !updateDTO.getName().equals(artist.getName())) {
+            // Có thể thêm check trùng tên ở đây nếu muốn
+            artist.setName(updateDTO.getName());
+        }
+
+        if (updateDTO.getImageUrl() != null) {
+            artist.setImageUrl(updateDTO.getImageUrl());
+        }
+
+        Artist savedArtist = artistRepository.save(artist);
+        return toDTO(savedArtist);
+    }
+
+    @Transactional
+    public void deleteArtist(Long id) {
+        if (!artistRepository.existsById(id)) {
+            throw new NoSuchElementException("Artist not found: " + id);
+        }
+        // Có thể thêm logic: Không cho xóa nếu Artist đang có bài hát
+        artistRepository.deleteById(id);
+    }
+
 
     private ArtistDTO toDTO(Artist a) {
         ArtistDTO dto = new ArtistDTO();
         dto.setId(a.getId());
         dto.setName(a.getName());
         dto.setImageUrl(a.getImageUrl());
+        dto.setSongCount(a.getSongCount());
+        return dto;
+    }
+
+
+    private SongDTO toSongDTO(Song s) {
+        SongDTO dto = new SongDTO();
+        dto.setId(s.getId());
+        dto.setTitle(s.getTitle());
+
+        // 1. Map duration (Mới thêm)
+        dto.setDuration(s.getDuration());
+
+        dto.setImageUrl(s.getImageUrl());
+        dto.setFilePath(s.getFilePath());
+        dto.setListenCount(s.getListenCount());
+        dto.setLikeCount(s.getLikeCount());
+        dto.setDescription(s.getDescription());
+        dto.setCreatedAt(s.getCreatedAt());
+
+        // 2. Map danh sách Artists (Thay vì chỉ 1 tên như cũ)
+        if (s.getArtists() != null) {
+            Set<ArtistDTO> artistDTOS = s.getArtists().stream()
+                    .map(this::toDTO) // Tái sử dụng hàm toDTO ở trên
+                    .collect(Collectors.toSet());
+            dto.setArtists(artistDTOS);
+        }
+
+        // 3. Map danh sách Tags (Thay vì Label)
+        if (s.getTags() != null) {
+            Set<TagDTO> tagDTOS = s.getTags().stream()
+                    .map(t -> {
+                        TagDTO tDto = new TagDTO();
+                        tDto.setId(t.getId());
+                        tDto.setName(t.getName());
+                        // tDto.setDescription(t.getDescription()); // Nếu DTO có field này
+                        return tDto;
+                    })
+                    .collect(Collectors.toSet());
+            dto.setTags(tagDTOS);
+        }
+
         return dto;
     }
 }

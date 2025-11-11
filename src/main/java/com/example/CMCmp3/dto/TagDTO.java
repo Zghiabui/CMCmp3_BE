@@ -5,11 +5,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@NoArgsConstructor
 @AllArgsConstructor
-public class ArtistDTO {
+@NoArgsConstructor
+public class TagDTO {
     private Long id;
     private String name;
-    private String imageUrl;
-    private Long songCount; // Số lượng bài hát (field phi chuẩn hóa để hiển thị nhanh)
+    private String description;
 }

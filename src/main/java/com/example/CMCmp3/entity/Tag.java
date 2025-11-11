@@ -10,12 +10,12 @@ import java.util.Set;
 import java.util.HashSet;
 
 @Entity
-@Table(name = "artists")
+@Table(name = "tags")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Artist {
+public class Tag {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -24,12 +24,9 @@ public class Artist {
     @Column(name = "name", nullable = false, unique = true)
     private String name;
 
-    @Column(name = "image_url")
-    private String imageUrl; // Link tới Firebase Storage
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
 
-    @Column(name = "song_count", nullable = false)
-    private Long songCount = 0L;
-
-    @ManyToMany(mappedBy = "artists", fetch = FetchType.LAZY)
+    @ManyToMany(mappedBy = "tags", fetch = FetchType.LAZY)
     private Set<Song> songs = new HashSet<>();
 }
