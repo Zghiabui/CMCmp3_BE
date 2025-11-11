@@ -8,6 +8,7 @@ import com.example.CMCmp3.repository.SongRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -20,6 +21,9 @@ public class ArtistService {
 
     private final ArtistRepository artistRepository;
     private final SongRepository songRepository;
+    private final FileStorageService fileStorageService;
+
+    private static final String BASE_URL = "http://localhost:8080/";
 
     @Transactional(readOnly = true)
     public List<ArtistDTO> getAllArtists() {
@@ -65,6 +69,24 @@ public class ArtistService {
     }
 
     @Transactional
+    public ArtistDTO createArtistWithUpload(String name, MultipartFile imageFile) {
+        if (artistRepository.existsByName(name)) {
+            throw new RuntimeException("Artist name already exists: " + name);
+        }
+
+        // Store the image file
+        String imagePath = fileStorageService.storeFile(imageFile, "images");
+
+        Artist artist = new Artist();
+        artist.setName(name);
+        artist.setImageUrl(imagePath);
+        artist.setSongCount(0L);
+
+        Artist savedArtist = artistRepository.save(artist);
+        return toDTO(savedArtist);
+    }
+
+    @Transactional
     public ArtistDTO updateArtist(Long id, UpdateArtistDTO updateDTO) {
         Artist artist = artistRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Artist not found: " + id));
@@ -97,7 +119,17 @@ public class ArtistService {
         ArtistDTO dto = new ArtistDTO();
         dto.setId(a.getId());
         dto.setName(a.getName());
-        dto.setImageUrl(a.getImageUrl());
+        
+        if (a.getImageUrl() != null && !a.getImageUrl().isEmpty()) {
+            if (a.getImageUrl().startsWith("http://") || a.getImageUrl().startsWith("https://")) {
+                dto.setImageUrl(a.getImageUrl()); // Already a full URL
+            } else {
+                dto.setImageUrl(BASE_URL + a.getImageUrl()); // Prepend base URL for relative paths
+            }
+        } else {
+            dto.setImageUrl(null);
+        }
+        
         dto.setSongCount(a.getSongCount());
         return dto;
     }

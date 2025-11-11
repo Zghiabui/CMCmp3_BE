@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -40,6 +41,15 @@ public class ArtistController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ArtistDTO> createArtist(@Valid @RequestBody CreateArtistDTO createArtistDTO) {
         ArtistDTO newArtist = artistService.createArtist(createArtistDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(newArtist);
+    }
+
+    @PostMapping(value = "/upload", consumes = "multipart/form-data")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ArtistDTO> createArtistWithUpload(
+            @RequestParam("name") String name,
+            @RequestParam("imageFile") MultipartFile imageFile) {
+        ArtistDTO newArtist = artistService.createArtistWithUpload(name, imageFile);
         return ResponseEntity.status(HttpStatus.CREATED).body(newArtist);
     }
 
