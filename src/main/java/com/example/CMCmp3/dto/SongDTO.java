@@ -1,26 +1,28 @@
 package com.example.CMCmp3.dto;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Data;
+import java.time.LocalDateTime;
+import java.util.Set;
 
 @Data
 public class SongDTO {
 
+    // 1. Đổi String -> Long để khớp với Entity và CSDL MySQL
     private Long id;
 
-    @NotBlank(message = "Tiêu đề không được để trống")
     private String title;
 
-    @NotBlank(message = "Nghệ sĩ không được để trống")
-    private String artist;
+    // 2. Thêm thuộc tính duration (Tính bằng giây)
+    private Integer duration;
 
-    @PositiveOrZero(message = "Thời lượng phải là số dương")
-    private int duration;
+    // 3. Đổi từ "String artist" -> Danh sách đối tượng Artist (để lấy cả ảnh, id của ca sĩ)
+    private Set<ArtistDTO> artists;
+
+    // 4. Đổi từ "label" -> Danh sách Tag (Thể loại)
+    private Set<TagDTO> tags;
 
     private String imageUrl;
 
-    @NotBlank(message = "Đường dẫn file không được để trống")
     private String filePath;
 
     private Long listenCount;
@@ -29,5 +31,6 @@ public class SongDTO {
 
     private String description;
 
-    private String label;
+    // Dùng LocalDateTime để dễ xử lý hơn Instant trong các query thông thường
+    private LocalDateTime createdAt;
 }

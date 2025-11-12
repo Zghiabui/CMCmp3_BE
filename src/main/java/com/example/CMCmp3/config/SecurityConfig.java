@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -16,6 +17,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -49,19 +51,31 @@ public class SecurityConfig {
         return http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+                )
+
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/login/oauth2/**").permitAll()
+                        .requestMatchers("/api/auth/**", "/login/oauth2/**", "/oauth2/redirect/**").permitAll()
+
                         .requestMatchers("/api/charts/realtime").permitAll()
-                        .requestMatchers("/api/songs/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/playlists/**").permitAll() // ⬅ ADDED
+                        .requestMatchers(HttpMethod.GET, "/api/songs/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/playlists/**").permitAll()
+                        .requestMatchers("/api/search").permitAll()
+                        .requestMatchers("/images/**").permitAll() // Cho phép truy cập ảnh avatar
+
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/me").authenticated()
+
+                        .requestMatchers("/api/users/me/**").authenticated() // /me và các đường dẫn con (avatar)
+                        .requestMatchers(HttpMethod.POST, "/api/playlists").authenticated() // Tạo playlist
+                        .requestMatchers(HttpMethod.DELETE, "/api/playlists/**").authenticated() // Xóa playlist
+
                         .anyRequest().authenticated()
                 )
-                .oauth2Login(oauth2 -> oauth2
-                        .successHandler(oAuth2AuthenticationSuccessHandler)
-                )
+                .oauth2Login(o -> o.successHandler(oAuth2AuthenticationSuccessHandler))
                 .userDetailsService(userDetailsServiceImpl)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
@@ -74,11 +88,13 @@ public class SecurityConfig {
                 "http://localhost:3000",
                 "http://localhost:8080",
                 "http://localhost:8082",
-                "http://127.0.0.1:8082" // ⬅ ADDED
+                "http://127.0.0.1:8082"
         ));
         cfg.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
+        cfg.setExposedHeaders(List.of("Authorization"));
         cfg.setAllowCredentials(true);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", cfg);
         return source;

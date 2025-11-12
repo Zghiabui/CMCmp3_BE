@@ -5,6 +5,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
@@ -15,9 +16,11 @@ import java.util.Date;
 @Service
 public class JwtService {
 
-    // Nên đưa vào application.properties/yaml: app.jwt.secret=...
-    private final String SECRET_KEY = "your-256-bit-secret-your-256-bit-secret";
-    private final long EXPIRATION = 1000L * 60 * 60 * 24; // 24h
+    @Value("${jwt.secret}")
+    private String SECRET_KEY;
+
+    @Value("${jwt.expiration}")
+    private long EXPIRATION;
 
     private Key getSigningKey() {
         return Keys.hmacShaKeyFor(SECRET_KEY.getBytes(StandardCharsets.UTF_8));
