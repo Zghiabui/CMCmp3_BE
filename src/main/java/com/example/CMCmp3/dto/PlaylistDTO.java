@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -13,6 +14,7 @@ public class PlaylistDTO {
     private String title;
     private String description;
     private String imageUrl;
+    private List<Long> songs;
     private Long playCount;
     private Long likeCount;
     private Long commentCount;
