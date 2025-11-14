@@ -74,7 +74,6 @@ public class UserService {
     }
 
     public User registerUser(RegisterDTO registerDTO) {
-        // (Giữ nguyên logic register của bạn)
         final String email = safeLower(registerDTO.getEmail());
         final String displayName = safeTrim(registerDTO.getDisplayName());
         final String phone = safeTrim(registerDTO.getPhone());
@@ -83,14 +82,17 @@ public class UserService {
         if (!StringUtils.hasText(email)) {
             throw new RuntimeException("Email không được để trống");
         }
-        if (StringUtils.hasText(phone) && userRepository.existsByPhone(phone)) {
-            throw new RuntimeException("Số điện thoại đã được sử dụng");
-        }
+
         var existingOpt = userRepository.findByEmailIgnoreCase(email);
         if (existingOpt.isPresent()) {
             User existing = existingOpt.get();
-            if (existing.getStatus() != UserStatus.ACTIVE) {
-                throw new RuntimeException("Email đã được sử dụng.");
+            // If user is already active, prevent re-registration
+            if (existing.getStatus() == UserStatus.ACTIVE) {
+                throw new RuntimeException("Email đã được đăng ký");
+            }
+            // If user exists but is not active, update and reactivate them
+            if (StringUtils.hasText(phone) && !phone.equals(existing.getPhone()) && userRepository.existsByPhone(phone)) {
+                throw new RuntimeException("Số điện thoại đã được sử dụng");
             }
             updateUserFromDTO(existing, displayName, email, phone, avatarUrl, registerDTO.getDob(), registerDTO.getGender());
             existing.setPassword(passwordEncoder.encode(registerDTO.getPassword()));
@@ -98,6 +100,11 @@ public class UserService {
             existing.setRole(Role.USER);
             existing.setProvider(AuthProvider.LOCAL);
             return userRepository.save(existing);
+        }
+
+        // If user does not exist, create a new one
+        if (StringUtils.hasText(phone) && userRepository.existsByPhone(phone)) {
+            throw new RuntimeException("Số điện thoại đã được sử dụng");
         }
 
         String username = generateUniqueUsername(displayName);
