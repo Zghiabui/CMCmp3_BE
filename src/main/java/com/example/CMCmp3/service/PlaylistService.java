@@ -39,7 +39,7 @@ public class PlaylistService {
         if (p.getPlaylistSongs() != null) {
             dto.setSongCount(p.getPlaylistSongs().size());
             // Nếu muốn trả về list ID bài hát:
-            // dto.setSongIds(p.getPlaylistSongs().stream().map(ps -> ps.getSong().getId()).collect(Collectors.toSet()));
+             dto.setSongs(p.getPlaylistSongs().stream().map(ps -> ps.getSong().getId()).collect(Collectors.toList()));
         } else {
             dto.setSongCount(0);
         }
