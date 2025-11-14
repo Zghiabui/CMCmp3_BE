@@ -76,4 +76,35 @@ public class AuthController {
             return ResponseEntity.status(401).body(Map.of("error", e.getMessage()));
         }
     }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@Valid @RequestBody OtpRequestDTO request) {
+        try {
+            otpService.generateAndSendOtpForPasswordReset(request.getEmail());
+            return ResponseEntity.ok(Map.of("message", "Password reset OTP sent successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody com.example.CMCmp3.dto.ResetPasswordDTO request) {
+        try {
+            OtpVerificationResult otpResult = otpService.verifyOtp(request.getEmail(), request.getOtp());
+            switch (otpResult) {
+                case INVALID:
+                    return ResponseEntity.badRequest().body(Map.of("error", "Invalid OTP"));
+                case EXPIRED:
+                    return ResponseEntity.badRequest().body(Map.of("error", "Expired OTP"));
+                case SUCCESS:
+                    // Proceed with password reset
+                    break;
+            }
+
+            userService.resetPassword(request.getEmail(), request.getNewPassword());
+            return ResponseEntity.ok(Map.of("message", "Password reset successfully"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
 }

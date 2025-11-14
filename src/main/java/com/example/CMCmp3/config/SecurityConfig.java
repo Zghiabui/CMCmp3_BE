@@ -63,15 +63,15 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/songs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/playlists/**").permitAll()
                         .requestMatchers("/api/search").permitAll()
-                        .requestMatchers("/images/**").permitAll() // Cho phép truy cập ảnh avatar
+                        .requestMatchers("/images/**").permitAll()
 
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        .requestMatchers("/api/users/me/**").authenticated() // /me và các đường dẫn con (avatar)
-                        .requestMatchers(HttpMethod.POST, "/api/playlists").authenticated() // Tạo playlist
-                        .requestMatchers(HttpMethod.DELETE, "/api/playlists/**").authenticated() // Xóa playlist
+                        .requestMatchers("/api/users/me/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/playlists").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/playlists/**").authenticated()
 
                         .anyRequest().authenticated()
                 )
