@@ -124,7 +124,7 @@ public class SongService {
         
         // Construct full URL for image
         if (s.getImageUrl() != null && !s.getImageUrl().isEmpty()) {
-            dto.setImageUrl(BASE_URL + s.getImageUrl());
+            dto.setImageUrl(s.getImageUrl());
         } else {
             dto.setImageUrl(null); // Or a default image URL
         }
