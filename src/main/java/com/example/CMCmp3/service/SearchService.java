@@ -65,7 +65,7 @@ public class SearchService {
         if (s.getImageUrl() != null && !s.getImageUrl().isEmpty()) {
             // Assuming BASE_URL is defined or accessible. For simplicity, hardcoding it here.
             String baseUrl = "http://localhost:8080/";
-            dto.setImageUrl(baseUrl + s.getImageUrl());
+            dto.setImageUrl(s.getImageUrl());
         } else {
             dto.setImageUrl(null); // Or a default image URL
         }
