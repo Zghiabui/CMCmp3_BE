@@ -9,8 +9,6 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -19,7 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;   // 👈 THÊM LẠI IMPORT NÀY
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -48,6 +46,7 @@ public class UserService {
         this.fileStorageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
         try {
             Files.createDirectories(this.fileStorageLocation);
+            System.out.println("✅ Avatar upload dir: " + this.fileStorageLocation);
         } catch (Exception ex) {
             throw new RuntimeException("Could not create the directory where the uploaded files will be stored.", ex);
         }
@@ -59,9 +58,9 @@ public class UserService {
                 u.getEmail(),
                 u.getDisplayName(),
                 u.getGender(),
-                u.getPhone(),       // Entity 'phone' -> DTO 'phoneNumber' (khớp vị trí constructor)
+                u.getPhone(),
                 u.getAvatarUrl(),
-                Set.of(u.getRole().name()) // Dùng Set<String> khớp với DTO
+                Set.of(u.getRole().name())
         );
     }
 
@@ -86,15 +85,16 @@ public class UserService {
         var existingOpt = userRepository.findByEmailIgnoreCase(email);
         if (existingOpt.isPresent()) {
             User existing = existingOpt.get();
-            // If user is already active, prevent re-registration
             if (existing.getStatus() == UserStatus.ACTIVE) {
                 throw new RuntimeException("Email đã được đăng ký");
             }
-            // If user exists but is not active, update and reactivate them
-            if (StringUtils.hasText(phone) && !phone.equals(existing.getPhone()) && userRepository.existsByPhone(phone)) {
+            if (StringUtils.hasText(phone)
+                    && !phone.equals(existing.getPhone())
+                    && userRepository.existsByPhone(phone)) {
                 throw new RuntimeException("Số điện thoại đã được sử dụng");
             }
-            updateUserFromDTO(existing, displayName, email, phone, avatarUrl, registerDTO.getDob(), registerDTO.getGender());
+            updateUserFromDTO(existing, displayName, email, phone, avatarUrl,
+                    registerDTO.getDob(), registerDTO.getGender());
             existing.setPassword(passwordEncoder.encode(registerDTO.getPassword()));
             existing.setStatus(UserStatus.ACTIVE);
             existing.setRole(Role.USER);
@@ -102,7 +102,6 @@ public class UserService {
             return userRepository.save(existing);
         }
 
-        // If user does not exist, create a new one
         if (StringUtils.hasText(phone) && userRepository.existsByPhone(phone)) {
             throw new RuntimeException("Số điện thoại đã được sử dụng");
         }
@@ -115,7 +114,8 @@ public class UserService {
                 .status(UserStatus.ACTIVE)
                 .provider(AuthProvider.LOCAL)
                 .build();
-        updateUserFromDTO(user, displayName, email, phone, avatarUrl, registerDTO.getDob(), registerDTO.getGender());
+        updateUserFromDTO(user, displayName, email, phone, avatarUrl,
+                registerDTO.getDob(), registerDTO.getGender());
         return userRepository.save(user);
     }
 
@@ -134,42 +134,67 @@ public class UserService {
 
     public UserDTO getMe(Authentication authentication) {
         User user = getCurrentUser(authentication);
-        return convertToDTO(user); // Dùng hàm convert chuẩn
+        return convertToDTO(user);
     }
 
     public UserDTO updateMe(Authentication authentication, UpdateUserDTO userDTO) {
         User user = getCurrentUser(authentication);
         user.setDisplayName(userDTO.getDisplayName());
         user.setGender(userDTO.getGender());
-        user.setPhone(userDTO.getPhoneNumber()); // Map từ phoneNumber DTO -> phone Entity
+        user.setPhone(userDTO.getPhoneNumber());
         User updatedUser = userRepository.save(user);
-        return convertToDTO(updatedUser); // Dùng hàm convert chuẩn
+        return convertToDTO(updatedUser);
     }
 
     public UserDTO updateAvatar(Authentication authentication, MultipartFile file) {
         User user = getCurrentUser(authentication);
-        String fileName = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
+
+        if (file == null || file.isEmpty()) {
+            throw new RuntimeException("File avatar trống");
+        }
+
+        // 1. Làm sạch tên file gốc
+        String originalFileName = StringUtils.cleanPath(
+                Objects.requireNonNull(file.getOriginalFilename(), "Filename is null")
+        );
+
+        if (originalFileName.contains("..")) {
+            throw new RuntimeException("Filename contains invalid path sequence " + originalFileName);
+        }
+
         try {
-            if (fileName.contains("..")) {
-                throw new RuntimeException("Sorry! Filename contains invalid path sequence " + fileName);
+            // 2. Sinh tên file mới (UUID + extension)
+            String ext = "";
+            int dotIdx = originalFileName.lastIndexOf('.');
+            if (dotIdx != -1) {
+                ext = originalFileName.substring(dotIdx); // ".jpg", ".png", ...
             }
-            String newFileName = UUID.randomUUID().toString() + "_" + fileName;
+            String newFileName = UUID.randomUUID() + ext;
+
+            // 3. Đảm bảo thư mục tồn tại
+            Files.createDirectories(this.fileStorageLocation);
+
+            // 4. Copy file vào thư mục uploads
             Path targetLocation = this.fileStorageLocation.resolve(newFileName);
             Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
 
-            String fileDownloadUri = ServletUriComponentsBuilder.fromCurrentContextPath()
+            System.out.println("✅ Saved avatar to: " + targetLocation.toAbsolutePath());
+
+            // 5. Tạo URL đầy đủ cho FE (http://localhost:8082/images/...)
+            String avatarUrl = ServletUriComponentsBuilder
+                    .fromCurrentContextPath()
                     .path("/images/")
                     .path(newFileName)
                     .toUriString();
 
-            user.setAvatarUrl(fileDownloadUri);
+            user.setAvatarUrl(avatarUrl);
             User updatedUser = userRepository.save(user);
-            return convertToDTO(updatedUser); // Dùng hàm convert chuẩn
+
+            return convertToDTO(updatedUser);
         } catch (IOException ex) {
-            throw new RuntimeException("Could not store file " + fileName + ". Please try again!", ex);
+            throw new RuntimeException("Could not store file " + originalFileName + ". Please try again!", ex);
         }
     }
-
 
     public void resetPassword(String email, String newPassword) {
         User user = userRepository.findByEmail(email)
