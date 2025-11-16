@@ -66,6 +66,12 @@ public class SongController {
         return ResponseEntity.ok(songService.getUploadedSongsForCurrentUser());
     }
 
+    @GetMapping("/user/{userId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<SongDTO>> getSongsByUserId(@PathVariable Long userId) {
+        return ResponseEntity.ok(songService.getSongsByUserId(userId));
+    }
+
     @GetMapping("/favorites")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<SongDTO>> getFavoriteSongs() {
