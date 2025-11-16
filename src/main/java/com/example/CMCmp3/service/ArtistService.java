@@ -8,6 +8,7 @@ import com.example.CMCmp3.repository.SongRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -47,17 +48,19 @@ public class ArtistService {
                 .collect(Collectors.toList());
     }
 
+    private final FileStorageService fileStorageService;
+
     @Transactional
-    public ArtistDTO createArtist(CreateArtistDTO createDTO) {
-        // Kiểm tra trùng tên nếu cần
-        if (artistRepository.existsByName(createDTO.getName())) {
-            throw new RuntimeException("Artist name already exists: " + createDTO.getName());
+    public ArtistDTO createArtistWithUpload(String name, MultipartFile imageFile) {
+        if (artistRepository.existsByName(name)) {
+            throw new RuntimeException("Artist name already exists: " + name);
         }
 
+        String imageUrl = fileStorageService.storeFile(imageFile, "images");
+
         Artist artist = new Artist();
-        artist.setName(createDTO.getName());
-        artist.setImageUrl(createDTO.getImageUrl());
-        // songCount mặc định là 0 khi tạo mới
+        artist.setName(name);
+        artist.setImageUrl(imageUrl);
         artist.setSongCount(0L);
 
         Artist savedArtist = artistRepository.save(artist);
