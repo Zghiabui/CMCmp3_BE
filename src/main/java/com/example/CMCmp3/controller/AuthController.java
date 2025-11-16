@@ -3,6 +3,7 @@ package com.example.CMCmp3.controller;
 import com.example.CMCmp3.dto.LoginDTO;
 import com.example.CMCmp3.dto.OtpRequestDTO;
 import com.example.CMCmp3.dto.RegisterDTO;
+import com.example.CMCmp3.dto.UserDTO;
 import com.example.CMCmp3.entity.User;
 import com.example.CMCmp3.security.JwtService;
 import com.example.CMCmp3.service.OtpService;
@@ -67,9 +68,10 @@ public class AuthController {
         try {
             User user = userService.authenticate(request.getEmail(), request.getPassword());
             String token = jwtService.generateToken(user);
+            UserDTO userDTO = userService.convertToDTO(user);
             return ResponseEntity.ok(Map.of(
                     "message", "Đăng nhập thành công",
-                    "username", user.getUsername(),
+                    "user", userDTO,
                     "token", token
             ));
         } catch (RuntimeException e) {

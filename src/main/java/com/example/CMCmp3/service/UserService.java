@@ -53,7 +53,7 @@ public class UserService {
         }
     }
 
-    private UserDTO convertToDTO(User u) {
+    public UserDTO convertToDTO(User u) {
         return new UserDTO(
                 u.getId(),
                 u.getEmail(),
@@ -61,7 +61,10 @@ public class UserService {
                 u.getGender(),
                 u.getPhone(),       // Entity 'phone' -> DTO 'phoneNumber' (khớp vị trí constructor)
                 u.getAvatarUrl(),
-                Set.of(u.getRole().name()) // Dùng Set<String> khớp với DTO
+                Set.of(u.getRole().name()), // Dùng Set<String> khớp với DTO
+                u.getCreatedAt(),
+                u.getUpdatedAt(),
+                u.getLastLoginTime()
         );
     }
 
@@ -129,6 +132,8 @@ public class UserService {
         if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
             throw new RuntimeException("Mật khẩu không đúng");
         }
+        user.setLastLoginTime(java.time.LocalDateTime.now());
+        userRepository.save(user);
         return user;
     }
 
