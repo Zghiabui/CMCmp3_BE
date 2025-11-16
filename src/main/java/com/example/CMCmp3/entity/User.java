@@ -78,6 +78,8 @@ public class User implements UserDetails {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
+    private LocalDateTime lastLoginTime;
+
     @OneToMany(mappedBy = "uploader", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Song> uploadedSongs = new HashSet<>();
 
