@@ -258,6 +258,14 @@ public class SongService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<SongDTO> getSongsByUserId(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NoSuchElementException("User not found: " + userId));
+        List<Song> songs = songRepository.findByUploader(user);
+        return songs.stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
     // =================================================================
     // 4. WRITE OPERATIONS (Ghi dữ liệu)
     // =================================================================
