@@ -9,8 +9,6 @@ import com.example.CMCmp3.repository.UserRepository;
 import com.example.CMCmp3.repository.SongLikeRepository;
 import com.mpatric.mp3agic.Mp3File;
 import lombok.RequiredArgsConstructor;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -20,13 +18,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
-import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -37,19 +33,12 @@ public class SongService {
     private final SongRepository songRepository;
     private final ArtistRepository artistRepository;
     private final TagRepository tagRepository;
-    private final FileStorageService fileStorageService;
     private final UserRepository userRepository;
     private final SongLikeRepository songLikeRepository;
+    private final FirebaseStorageService firebaseStorageService;
 
-    private static final String BASE_URL = "http://localhost:8080/"; // Or configure via application.properties
-
-    // =================================================================
     // 1. HELPERS: FETCHING & CALCULATION (Logic phụ trợ)
-    // =================================================================
 
-    /**
-     * Helper: Lấy danh sách Artist Entity từ Set<Long> ID
-     */
     private Set<Artist> fetchArtistsByIds(Set<Long> artistIds) {
         if (artistIds == null || artistIds.isEmpty()) {
             return new HashSet<>();
@@ -57,9 +46,6 @@ public class SongService {
         return new HashSet<>(artistRepository.findAllById(artistIds));
     }
 
-    /**
-     * Helper: Lấy danh sách Tag Entity từ Set<Long> ID
-     */
     private Set<Tag> fetchTagsByIds(Set<Long> tagIds) {
         if (tagIds == null || tagIds.isEmpty()) {
             return new HashSet<>();
@@ -67,10 +53,6 @@ public class SongService {
         return new HashSet<>(tagRepository.findAllById(tagIds));
     }
 
-    /**
-     * Helper: Tính Duration từ file MP3 (Local hoặc URL)
-     * Sử dụng thư viện mp3agic
-     */
     private int calculateDuration(String filePath) {
         File tempFile = null;
         try {
@@ -120,21 +102,15 @@ public class SongService {
         dto.setId(s.getId());
         dto.setTitle(s.getTitle());
         dto.setDuration(s.getDuration());
-        dto.setFilePath(s.getFilePath()); // FilePath can remain relative as it's for internal use or streaming
-        
-        // Construct full URL for image
-        if (s.getImageUrl() != null && !s.getImageUrl().isEmpty()) {
-            dto.setImageUrl(s.getImageUrl());
-        } else {
-            dto.setImageUrl(null); // Or a default image URL
-        }
-        
+        dto.setFilePath(s.getFilePath()); // Đây sẽ là URL Firebase của file MP3
+        dto.setImageUrl(s.getImageUrl()); // Đây sẽ là URL Firebase của file ảnh
+        // ... (Giữ nguyên phần còn lại của hàm)
+
         dto.setListenCount(s.getListenCount());
         dto.setLikeCount(s.getLikeCount());
         dto.setDescription(s.getDescription());
         dto.setCreatedAt(s.getCreatedAt());
 
-        // Map danh sách Ca sĩ
         if (s.getArtists() != null) {
             Set<ArtistDTO> artistDTOS = s.getArtists().stream()
                     .map(a -> new ArtistDTO(a.getId(), a.getName(), a.getImageUrl(), a.getSongCount()))
@@ -144,7 +120,6 @@ public class SongService {
             dto.setArtists(Collections.emptySet());
         }
 
-        // Map danh sách Thể loại (Tag)
         if (s.getTags() != null) {
             Set<TagDTO> tagDTOS = s.getTags().stream()
                     .map(t -> {
@@ -200,14 +175,6 @@ public class SongService {
         Song song = songRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Song not found: " + id));
         return toDTO(song);
-    }
-
-    @Transactional(readOnly = true)
-    public Resource getSongFile(Long id) {
-        Song song = songRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Song not found: " + id));
-        // Use FileStorageService to correctly load the file as a resource
-        return fileStorageService.loadFileAsResource(song.getFilePath());
     }
 
     // --- TOP CHARTS (Sử dụng logic Repository trả về List Entity) ---
@@ -266,9 +233,7 @@ public class SongService {
         return songs.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
-    // =================================================================
     // 4. WRITE OPERATIONS (Ghi dữ liệu)
-    // =================================================================
 
     @Transactional
     public SongDTO createSong(CreateSongDTO createSongDTO) {
@@ -279,37 +244,42 @@ public class SongService {
 
     @Transactional
     public SongDTO createSongWithUpload(String title, String description, Set<Long> artistIds, Set<Long> tagIds, MultipartFile songFile, MultipartFile imageFile) {
-        // 0. Get current user
-        String email = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername();
-        User currentUser = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Current user not found in database"));
+        try {
+            // 0. Get current user
+            String email = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername();
+            User currentUser = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("Current user not found in database"));
 
-        // 1. Store files
-        String songFilePath = fileStorageService.storeFile(songFile, "music");
-        String imageFilePath = fileStorageService.storeFile(imageFile, "images");
+            // 1. Store files (SỬ DỤNG FIREBASE)
+            String songFilePath = firebaseStorageService.uploadFile(songFile); // <-- SỬA LẠI
+            String imageFilePath = firebaseStorageService.uploadFile(imageFile); // <-- SỬA LẠI
 
-        // 2. Create new Song entity
-        Song song = new Song();
-        song.setTitle(title);
-        song.setDescription(description);
-        song.setFilePath(songFilePath);
-        song.setImageUrl(imageFilePath);
-        song.setUploader(currentUser); // Set the uploader
+            // 2. Create new Song entity
+            Song song = new Song();
+            song.setTitle(title);
+            song.setDescription(description);
+            song.setFilePath(songFilePath); // <-- URL từ Firebase
+            song.setImageUrl(imageFilePath); // <-- URL từ Firebase
+            song.setUploader(currentUser); // Set the uploader
 
-        // 3. Set default values and relationships
-        song.setListenCount(0L);
-        song.setLikeCount(0L);
-        song.setArtists(fetchArtistsByIds(artistIds));
-        song.setTags(fetchTagsByIds(tagIds));
+            // 3. Set default values and relationships
+            song.setListenCount(0L);
+            song.setLikeCount(0L);
+            song.setArtists(fetchArtistsByIds(artistIds));
+            song.setTags(fetchTagsByIds(tagIds));
 
-        // 4. Calculate duration from the stored file
-        // The file path is now relative, so we need to resolve it against the root upload directory
-        String fullSongPath = Paths.get("uploads").resolve(songFilePath).toAbsolutePath().toString();
-        song.setDuration(calculateDuration(fullSongPath));
+            // 4. Calculate duration (HÀM calculateDuration SẼ TỰ XỬ LÝ URL)
+            // String fullSongPath = Paths.get("uploads").resolve(songFilePath)... // <-- XÓA DÒNG CŨ
+            song.setDuration(calculateDuration(songFilePath)); // <-- TRUYỀN THẲNG URL VÀO
 
-        // 5. Save and return DTO
-        Song savedSong = songRepository.save(song);
-        return toDTO(savedSong);
+            // 5. Save and return DTO
+            Song savedSong = songRepository.save(song);
+            return toDTO(savedSong);
+
+        } catch (IOException ex) {
+            // Ném ra lỗi nếu Firebase upload thất bại
+            throw new RuntimeException("Không thể upload file bài hát. Vui lòng thử lại!", ex);
+        }
     }
 
     @Transactional
