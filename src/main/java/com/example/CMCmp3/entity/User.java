@@ -110,4 +110,7 @@ public class User implements UserDetails {
         return true;
     }
 
+    public String getName() {
+        return this.username;
+    }
 }

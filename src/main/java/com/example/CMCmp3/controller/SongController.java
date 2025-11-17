@@ -2,6 +2,7 @@ package com.example.CMCmp3.controller;
 
 import com.example.CMCmp3.dto.CreateSongDTO;
 import com.example.CMCmp3.dto.SongDTO;
+import com.example.CMCmp3.dto.UserSongsDTO;
 import com.example.CMCmp3.service.SongService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -68,7 +69,7 @@ public class SongController {
 
     @GetMapping("/user/{userId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<SongDTO>> getSongsByUserId(@PathVariable Long userId) {
+    public ResponseEntity<UserSongsDTO> getSongsByUserId(@PathVariable Long userId) {
         return ResponseEntity.ok(songService.getSongsByUserId(userId));
     }
 
