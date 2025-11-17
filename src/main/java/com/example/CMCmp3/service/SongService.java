@@ -251,10 +251,12 @@ public class SongService {
         User currentUser = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Current user not found in database"));
 
-        // 2. Get liked songs from the user entity
-        return currentUser.getLikedSongs().stream()
-                .map(SongLike::getSong) // Extract Song from SongLike
-                .map(this::toDTO)      // Map Song to SongDTO
+        // 2. Get liked songs using the new repository method
+        List<Song> likedSongs = songRepository.findLikedSongsByUserId(currentUser.getId());
+
+        // 3. Map to DTOs and return
+        return likedSongs.stream()
+                .map(this::toDTO)
                 .collect(Collectors.toList());
     }
 

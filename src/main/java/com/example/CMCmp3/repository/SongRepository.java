@@ -45,4 +45,7 @@ public interface SongRepository extends JpaRepository<Song, Long> {
     List<Song> findTopByLikeCount(Pageable pageable);
 
     List<Song> findByUploader(User uploader);
+
+    @Query("SELECT sl.song FROM SongLike sl WHERE sl.user.id = :userId")
+    List<Song> findLikedSongsByUserId(@Param("userId") Long userId);
 }
