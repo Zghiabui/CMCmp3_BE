@@ -119,4 +119,10 @@ public class SongController {
         songService.deleteSong(id);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/search")
+    @PreAuthorize("permitAll()") // Publicly accessible search
+    public ResponseEntity<List<SongDTO>> searchSongs(@RequestParam("q") String query) {
+        return ResponseEntity.ok(songService.searchSongs(query));
+    }
 }

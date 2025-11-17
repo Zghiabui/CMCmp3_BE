@@ -5,7 +5,9 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Entity
@@ -48,9 +50,9 @@ public class Playlist {
     private User owner;
 
     // 2. Danh sách bài hát (QUAN TRỌNG: Dùng bảng trung gian PlaylistSong để lưu thứ tự)
-    // Không dùng @ManyToMany trực tiếp được vì cần cột 'position'
     @OneToMany(mappedBy = "playlist", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<PlaylistSong> playlistSongs = new HashSet<>();
+    @OrderBy("order ASC") // Sắp xếp các bài hát theo vị trí
+    private List<PlaylistSong> playlistSongs = new ArrayList<>();
 
     // 3. Quan hệ Likes và Comments (Để xóa playlist thì xóa luôn like/comment)
     @OneToMany(mappedBy = "playlist", cascade = CascadeType.ALL, orphanRemoval = true)

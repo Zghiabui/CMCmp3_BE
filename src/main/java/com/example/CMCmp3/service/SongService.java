@@ -266,6 +266,14 @@ public class SongService {
         return songs.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<SongDTO> searchSongs(String query) {
+        return songRepository.searchSongsByTitleOrArtist(query)
+                .stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
     // =================================================================
     // 4. WRITE OPERATIONS (Ghi dữ liệu)
     // =================================================================

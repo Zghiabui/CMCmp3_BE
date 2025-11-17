@@ -33,4 +33,11 @@ public class PlaylistSong {
 
     @CreationTimestamp
     private LocalDateTime addedAt; // Ngày thêm bài vào playlist
+
+    public PlaylistSong(Playlist playlist, Song song, Integer order) {
+        this.playlist = playlist;
+        this.song = song;
+        this.order = order;
+        this.id = new PlaylistSongId(playlist.getId(), song.getId());
+    }
 }

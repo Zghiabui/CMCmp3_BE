@@ -2,6 +2,8 @@ package com.example.CMCmp3.controller;
 
 import com.example.CMCmp3.dto.CreatePlaylistDTO;
 import com.example.CMCmp3.dto.PlaylistDTO;
+import com.example.CMCmp3.dto.SongsToPlaylistDTO;
+import com.example.CMCmp3.dto.UpdatePlaylistDTO;
 import com.example.CMCmp3.service.PlaylistService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +19,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PlaylistController {
 
-    private final PlaylistService playlistService; // Chỉ cần inject Service chính
+    private final PlaylistService playlistService;
 
     // Lấy tất cả
     @GetMapping
@@ -31,7 +33,7 @@ public class PlaylistController {
         return ResponseEntity.ok(playlistService.getById(id));
     }
 
-    // API Top Nghe nhiều (Thay thế cho QueryService cũ)
+    // API Top Nghe nhiều
     @GetMapping("/top")
     public ResponseEntity<List<PlaylistDTO>> getTop(@RequestParam(defaultValue = "10") int limit) {
         return ResponseEntity.ok(playlistService.getTopPlaylistsByPlayCount(limit));
@@ -56,7 +58,29 @@ public class PlaylistController {
         return ResponseEntity.status(HttpStatus.CREATED).body(playlistService.createPlaylist(dto));
     }
 
-    // Xóa
+    // Chỉnh sửa thông tin playlist
+    @PutMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<PlaylistDTO> update(@PathVariable Long id, @RequestBody UpdatePlaylistDTO dto) {
+        return ResponseEntity.ok(playlistService.updatePlaylist(id, dto));
+    }
+
+    // Thêm một hoặc nhiều bài hát vào playlist
+    @PostMapping("/{playlistId}/songs")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<PlaylistDTO> addSongsToPlaylist(@PathVariable Long playlistId, @Valid @RequestBody SongsToPlaylistDTO dto) {
+        return ResponseEntity.ok(playlistService.addSongsToPlaylist(playlistId, dto));
+    }
+
+    // Xóa bài hát khỏi playlist
+    @DeleteMapping("/{playlistId}/songs/{songId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> removeSongFromPlaylist(@PathVariable Long playlistId, @PathVariable Long songId) {
+        playlistService.removeSongFromPlaylist(playlistId, songId);
+        return ResponseEntity.noContent().build();
+    }
+
+    // Xóa playlist
     @DeleteMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
