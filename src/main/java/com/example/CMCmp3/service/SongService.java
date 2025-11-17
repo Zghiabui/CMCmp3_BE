@@ -340,11 +340,122 @@ public class SongService {
         return toDTO(updatedSong);
     }
 
-    @Transactional
-    public void deleteSong(Long id) {
-        if (!songRepository.existsById(id)) {
-            throw new NoSuchElementException("Song not found: " + id);
+        @Transactional
+
+        public void deleteSong(Long id) {
+
+            if (!songRepository.existsById(id)) {
+
+                throw new NoSuchElementException("Song not found: " + id);
+
+            }
+
+            songRepository.deleteById(id);
+
         }
-        songRepository.deleteById(id);
+
+    
+
+        // =================================================================
+
+        // 5. LIKE/UNLIKE OPERATIONS
+
+        // =================================================================
+
+    
+
+        @Transactional
+
+        public void likeSong(Long songId) {
+
+            // 1. Get current user and song
+
+            String email = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername();
+
+            User currentUser = userRepository.findByEmail(email)
+
+                    .orElseThrow(() -> new RuntimeException("Current user not found"));
+
+            Song song = songRepository.findById(songId)
+
+                    .orElseThrow(() -> new NoSuchElementException("Song not found: " + songId));
+
+    
+
+            // 2. Check if already liked
+
+            SongLikeId likeId = new SongLikeId(currentUser.getId(), song.getId());
+
+            if (songLikeRepository.existsById(likeId)) {
+
+                // Optional: throw an exception or just return
+
+                return; // Already liked, do nothing
+
+            }
+
+    
+
+            // 3. Create new like and update count
+
+            SongLike songLike = new SongLike(currentUser, song);
+
+            songLikeRepository.save(songLike);
+
+    
+
+            song.setLikeCount(song.getLikeCount() + 1);
+
+            songRepository.save(song);
+
+        }
+
+    
+
+        @Transactional
+
+        public void unlikeSong(Long songId) {
+
+            // 1. Get current user and song
+
+            String email = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername();
+
+            User currentUser = userRepository.findByEmail(email)
+
+                    .orElseThrow(() -> new RuntimeException("Current user not found"));
+
+            Song song = songRepository.findById(songId)
+
+                    .orElseThrow(() -> new NoSuchElementException("Song not found: " + songId));
+
+    
+
+            // 2. Find the like
+
+            SongLikeId likeId = new SongLikeId(currentUser.getId(), song.getId());
+
+            SongLike songLike = songLikeRepository.findById(likeId)
+
+                    .orElse(null); // Find the like to delete
+
+    
+
+            // 3. If like exists, delete it and update count
+
+            if (songLike != null) {
+
+                songLikeRepository.delete(songLike);
+
+    
+
+                song.setLikeCount(Math.max(0, song.getLikeCount() - 1)); // Avoid negative counts
+
+                songRepository.save(song);
+
+            }
+
+        }
+
     }
-}
+
+    
