@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.io.IOException;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +22,7 @@ public class ArtistService {
 
     private final ArtistRepository artistRepository;
     private final SongRepository songRepository;
+    private final FirebaseStorageService firebaseStorageService;
 
     @Transactional(readOnly = true)
     public List<ArtistDTO> getAllArtists() {
@@ -48,7 +50,7 @@ public class ArtistService {
                 .collect(Collectors.toList());
     }
 
-    private final FileStorageService fileStorageService;
+
 
     @Transactional
     public ArtistDTO createArtistWithUpload(String name, MultipartFile imageFile) {
@@ -56,15 +58,18 @@ public class ArtistService {
             throw new RuntimeException("Artist name already exists: " + name);
         }
 
-        String imageUrl = fileStorageService.storeFile(imageFile, "images");
+        try {
+            String imageUrl = firebaseStorageService.uploadFile(imageFile); // <-- DÙNG FIREBASE
+            Artist artist = new Artist();
+            artist.setName(name);
+            artist.setImageUrl(imageUrl); // Lưu URL từ Firebase
+            artist.setSongCount(0L);
+            Artist savedArtist = artistRepository.save(artist);
+            return toDTO(savedArtist);
 
-        Artist artist = new Artist();
-        artist.setName(name);
-        artist.setImageUrl(imageUrl);
-        artist.setSongCount(0L);
-
-        Artist savedArtist = artistRepository.save(artist);
-        return toDTO(savedArtist);
+        } catch (IOException ex) {
+            throw new RuntimeException("Không thể lưu file ảnh nghệ sĩ. Vui lòng thử lại!", ex);
+        }
     }
 
     @Transactional

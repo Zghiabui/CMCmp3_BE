@@ -5,12 +5,10 @@ import com.example.CMCmp3.dto.SongDTO;
 import com.example.CMCmp3.service.SongService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -78,14 +76,6 @@ public class SongController {
         return ResponseEntity.ok(songService.getFavoriteSongsForCurrentUser());
     }
 
-    @GetMapping("/stream/{id}")
-    public ResponseEntity<Resource> streamSong(@PathVariable Long id) {
-        Resource resource = songService.getSongFile(id);
-        return ResponseEntity.ok()
-                .contentType(MediaType.valueOf("audio/mpeg"))
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + resource.getFilename() + "\"")
-                .body(resource);
-    }
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
