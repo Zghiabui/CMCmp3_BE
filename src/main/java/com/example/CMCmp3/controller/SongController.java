@@ -119,4 +119,18 @@ public class SongController {
         songService.deleteSong(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{id}/like")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> like(@PathVariable Long id) {
+        songService.likeSong(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}/like")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> unlike(@PathVariable Long id) {
+        songService.unlikeSong(id);
+        return ResponseEntity.noContent().build();
+    }
 }
