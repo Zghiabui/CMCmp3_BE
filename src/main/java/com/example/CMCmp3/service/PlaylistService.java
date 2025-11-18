@@ -38,6 +38,7 @@ public class PlaylistService {
     private final UserRepository userRepository;
     private final SongService songService;
     private final SongRepository songRepository;
+    private final FirebaseStorageService firebaseStorageService;
 
     // --- MAPPING ---
     private PlaylistDTO toDTO(Playlist p) {
@@ -197,10 +198,21 @@ public class PlaylistService {
         User currentUser = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        String imageUrl = null;
+        // Upload image to Firebase if it exists
+        if (dto.getImageFile() != null && !dto.getImageFile().isEmpty()) {
+            try {
+                imageUrl = firebaseStorageService.uploadFile(dto.getImageFile());
+            } catch (Exception e) {
+                // Handle file upload exception
+                throw new RuntimeException("Could not upload image: " + e.getMessage());
+            }
+        }
+
         Playlist p = new Playlist();
         p.setTitle(dto.getName()); // Use dto.getName()
         p.setDescription(dto.getDescription());
-        p.setImageUrl(dto.getImageUrl());
+        p.setImageUrl(imageUrl); // Set the uploaded image URL
         p.setOwner(currentUser); // Gán chủ sở hữu
         p.setPlayCount(0L);
         p.setLikeCount(0L);

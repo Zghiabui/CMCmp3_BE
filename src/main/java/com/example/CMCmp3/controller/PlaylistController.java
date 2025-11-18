@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.MediaType;
 
 import java.util.List;
 
@@ -52,10 +53,13 @@ public class PlaylistController {
         return ResponseEntity.ok(playlistService.getTopPlaylistsByLikeCount(limit));
     }
 
+
+//... (other imports)
+
     // Tạo mới
-    @PostMapping
+    @PostMapping(consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<PlaylistDTO> create(@Valid @RequestBody CreatePlaylistDTO dto) {
+    public ResponseEntity<PlaylistDTO> create(@Valid @ModelAttribute CreatePlaylistDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(playlistService.createPlaylist(dto));
     }
 
