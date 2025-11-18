@@ -90,6 +90,21 @@ public class SongController {
         return ResponseEntity.status(HttpStatus.CREATED).body(newSong);
     }
 
+    @PutMapping(value = "/uploaded/{id}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<SongDTO> updateUploadedSong(
+            @PathVariable Long id,
+            @RequestParam(value = "title", required = false) String title,
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "artistIds", required = false) Set<Long> artistIds,
+            @RequestParam(value = "tagIds", required = false) Set<Long> tagIds,
+            @RequestParam(value = "songFile", required = false) MultipartFile songFile,
+            @RequestParam(value = "imageFile", required = false) MultipartFile imageFile
+    ) {
+        SongDTO updatedSong = songService.updateUploadedSong(id, title, description, artistIds, tagIds, songFile, imageFile);
+        return ResponseEntity.ok(updatedSong);
+    }
+
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<SongDTO> update(@PathVariable Long id, @RequestBody CreateSongDTO dto) {
