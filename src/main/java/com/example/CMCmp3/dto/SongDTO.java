@@ -12,6 +12,8 @@ public class SongDTO {
 
     private String title;
 
+    private String artistName; // Thêm trường artistName
+
     // 2. Thêm thuộc tính duration (Tính bằng giây)
     private Integer duration;
 

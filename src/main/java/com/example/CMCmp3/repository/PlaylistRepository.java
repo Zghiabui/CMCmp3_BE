@@ -26,6 +26,9 @@ public interface PlaylistRepository extends JpaRepository<Playlist, Long> {
     // Tìm playlist của một user cụ thể (Dùng ownerId)
     List<Playlist> findByOwnerId(Long ownerId);
 
+    @Query("SELECT DISTINCT p FROM Playlist p LEFT JOIN FETCH p.owner LEFT JOIN FETCH p.playlistSongs ps LEFT JOIN FETCH ps.song WHERE p.owner = :owner")
+    List<Playlist> findByOwner(@Param("owner") com.example.CMCmp3.entity.User owner);
+
     // Tìm kiếm theo tiêu đề (Title)
     @Query("SELECT p FROM Playlist p WHERE LOWER(p.title) LIKE LOWER(CONCAT('%', :query, '%'))")
     List<Playlist> searchByTitle(@Param("query") String query);

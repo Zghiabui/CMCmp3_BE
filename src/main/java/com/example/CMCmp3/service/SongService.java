@@ -97,7 +97,7 @@ public class SongService {
     /**
      * Convert: Entity -> DTO (Response)
      */
-    private SongDTO toDTO(Song s) {
+    public SongDTO toDTO(Song s) {
         SongDTO dto = new SongDTO();
         dto.setId(s.getId());
         dto.setTitle(s.getTitle());
@@ -111,13 +111,18 @@ public class SongService {
         dto.setDescription(s.getDescription());
         dto.setCreatedAt(s.getCreatedAt());
 
-        if (s.getArtists() != null) {
+        if (s.getArtists() != null && !s.getArtists().isEmpty()) {
+            dto.setArtistName(s.getArtists().stream()
+                    .map(Artist::getName)
+                    .collect(Collectors.joining(", ")));
+
             Set<ArtistDTO> artistDTOS = s.getArtists().stream()
                     .map(a -> new ArtistDTO(a.getId(), a.getName(), a.getImageUrl(), a.getSongCount()))
                     .collect(Collectors.toSet());
             dto.setArtists(artistDTOS);
         } else {
             dto.setArtists(Collections.emptySet());
+            dto.setArtistName("");
         }
 
         if (s.getTags() != null) {
@@ -168,6 +173,11 @@ public class SongService {
     @Transactional(readOnly = true)
     public Page<SongDTO> getAllSongs(Pageable pageable) {
         return songRepository.findAll(pageable).map(this::toDTO);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SongDTO> getAllSongsList() {
+        return songRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)

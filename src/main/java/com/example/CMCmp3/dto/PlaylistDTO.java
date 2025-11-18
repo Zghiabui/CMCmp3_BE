@@ -18,6 +18,7 @@ public class PlaylistDTO {
     private Long playCount;
     private Long likeCount;
     private Long commentCount;
+    private String privacy; // Thêm trường privacy
     private int songCount; // Số lượng bài hát trong playlist
     private String ownerName; // Tên người tạo
     private LocalDateTime createdAt;

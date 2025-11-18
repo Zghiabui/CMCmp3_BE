@@ -35,6 +35,10 @@ public class Playlist {
     private Long likeCount = 0L;
     private Long commentCount = 0L;
 
+    @Enumerated(EnumType.STRING) // Store enum as String in DB
+    @Column(nullable = false)
+    private PlaylistPrivacy privacy = PlaylistPrivacy.PRIVATE; // Default to PRIVATE
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
