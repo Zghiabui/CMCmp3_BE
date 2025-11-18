@@ -134,6 +134,11 @@ public class SongService {
             dto.setTags(Collections.emptySet());
         }
 
+        if (s.getUploader() != null) {
+            User uploader = s.getUploader();
+            dto.setUploader(new SongDTO.UploaderDTO(uploader.getId(), uploader.getDisplayName()));
+        }
+
         return dto;
     }
 
