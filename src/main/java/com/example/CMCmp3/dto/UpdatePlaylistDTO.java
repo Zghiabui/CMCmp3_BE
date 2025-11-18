@@ -3,13 +3,18 @@ package com.example.CMCmp3.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.Data;
+import org.springframework.web.multipart.MultipartFile; // Import MultipartFile
 
 @Data
 public class UpdatePlaylistDTO {
     @NotBlank(message = "Tên playlist không được để trống")
     private String name;
 
+    private String description; // Add description field
+    private MultipartFile imageFile; // To handle image upload
+    private String artistIds; // Comma-separated artist IDs
+
     @NotBlank(message = "Chế độ riêng tư không được để trống")
-    @Pattern(regexp = "PUBLIC|PRIVATE", message = "Chế độ riêng tư phải là 'PUBLIC' hoặc 'PRIVATE'")
+    @Pattern(regexp = "(?i)PUBLIC|PRIVATE", message = "Chế độ riêng tư phải là 'PUBLIC' hoặc 'PRIVATE'")
     private String privacy;
 }

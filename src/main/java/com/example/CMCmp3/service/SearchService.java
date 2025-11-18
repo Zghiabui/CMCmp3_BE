@@ -98,7 +98,11 @@ public class SearchService {
 
     // Mapping Artist Entity -> DTO
     private ArtistDTO toArtistDTO(Artist a) {
-        return new ArtistDTO(a.getId(), a.getName(), a.getImageUrl(), a.getSongCount());
+        ArtistDTO dto = new ArtistDTO();
+        dto.setId(a.getId());
+        dto.setName(a.getName());
+        dto.setImageUrl(a.getImageUrl());
+        return dto;
     }
 
     // Mapping Playlist Entity -> DTO

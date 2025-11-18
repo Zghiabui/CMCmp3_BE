@@ -62,4 +62,13 @@ public class Playlist {
 
     @OneToMany(mappedBy = "playlist", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<PlaylistComment> comments = new HashSet<>();
+
+    // 4. Danh sách nghệ sĩ liên quan (ManyToMany)
+    @ManyToMany
+    @JoinTable(
+            name = "playlist_artists",
+            joinColumns = @JoinColumn(name = "playlist_id"),
+            inverseJoinColumns = @JoinColumn(name = "artist_id")
+    )
+    private Set<Artist> artists = new HashSet<>();
 }

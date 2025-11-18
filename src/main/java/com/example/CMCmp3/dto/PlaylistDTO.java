@@ -15,6 +15,7 @@ public class PlaylistDTO {
     private String description;
     private String imageUrl;
     private List<Long> songs;
+    private List<ArtistDTO> artists; // New field for associated artists
     private Long playCount;
     private Long likeCount;
     private Long commentCount;

@@ -117,7 +117,13 @@ public class SongService {
                     .collect(Collectors.joining(", ")));
 
             Set<ArtistDTO> artistDTOS = s.getArtists().stream()
-                    .map(a -> new ArtistDTO(a.getId(), a.getName(), a.getImageUrl(), a.getSongCount()))
+                    .map(a -> {
+                        ArtistDTO artistDto = new ArtistDTO();
+                        artistDto.setId(a.getId());
+                        artistDto.setName(a.getName());
+                        artistDto.setImageUrl(a.getImageUrl());
+                        return artistDto;
+                    })
                     .collect(Collectors.toSet());
             dto.setArtists(artistDTOS);
         } else {

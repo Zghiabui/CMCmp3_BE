@@ -64,11 +64,11 @@ public class PlaylistController {
     }
 
     // Cập nhật thông tin playlist
-    @PutMapping("/{playlistId}")
+    @PutMapping(value = "/{playlistId}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<PlaylistDTO> updatePlaylist(
             @PathVariable Long playlistId,
-            @Valid @RequestBody UpdatePlaylistDTO dto) {
+            @Valid @ModelAttribute UpdatePlaylistDTO dto) {
         return ResponseEntity.ok(playlistService.updatePlaylist(playlistId, dto));
     }
 
