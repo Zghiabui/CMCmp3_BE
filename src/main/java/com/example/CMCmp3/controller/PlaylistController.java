@@ -42,13 +42,13 @@ public class PlaylistController {
     }
 
     // API Top Mới nhất
-    @GetMapping("/top/new")
+    @GetMapping("/top/new-releases")
     public ResponseEntity<List<PlaylistDTO>> getTopNew(@RequestParam(defaultValue = "10") int limit) {
         return ResponseEntity.ok(playlistService.getTopNewPlaylists(limit));
     }
 
     // API Top Lượt thích
-    @GetMapping("/top/likes")
+    @GetMapping("/top/most-liked")
     public ResponseEntity<List<PlaylistDTO>> getTopLikes(@RequestParam(defaultValue = "10") int limit) {
         return ResponseEntity.ok(playlistService.getTopPlaylistsByLikeCount(limit));
     }
