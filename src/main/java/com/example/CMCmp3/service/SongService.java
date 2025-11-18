@@ -3,15 +3,16 @@ package com.example.CMCmp3.service;
 import com.example.CMCmp3.dto.*;
 import com.example.CMCmp3.entity.*;
 import com.example.CMCmp3.repository.ArtistRepository;
+import com.example.CMCmp3.repository.SongLikeRepository;
 import com.example.CMCmp3.repository.SongRepository;
 import com.example.CMCmp3.repository.TagRepository;
 import com.example.CMCmp3.repository.UserRepository;
-import com.example.CMCmp3.repository.SongLikeRepository;
 import com.mpatric.mp3agic.Mp3File;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,18 @@ public class SongService {
     private final UserRepository userRepository;
     private final SongLikeRepository songLikeRepository;
     private final FirebaseStorageService firebaseStorageService;
+
+    private User getCurrentAuthenticatedUser() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String email;
+        if (principal instanceof UserDetails userDetails) {
+            email = userDetails.getUsername();
+        } else {
+            email = principal.toString();
+        }
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Current user not found in database"));
+    }
 
     // 1. HELPERS: FETCHING & CALCULATION (Logic phụ trợ)
 
@@ -253,9 +266,7 @@ public class SongService {
     public SongDTO createSongWithUpload(String title, String description, Set<Long> artistIds, Set<Long> tagIds, MultipartFile songFile, MultipartFile imageFile) {
         try {
             // 0. Get current user
-            String email = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername();
-            User currentUser = userRepository.findByEmail(email)
-                    .orElseThrow(() -> new RuntimeException("Current user not found in database"));
+            User currentUser = getCurrentAuthenticatedUser();
 
             // 1. Store files (SỬ DỤNG FIREBASE)
             String songFilePath = firebaseStorageService.uploadFile(songFile); // <-- SỬA LẠI
@@ -287,6 +298,58 @@ public class SongService {
             // Ném ra lỗi nếu Firebase upload thất bại
             throw new RuntimeException("Không thể upload file bài hát. Vui lòng thử lại!", ex);
         }
+    }
+
+    @Transactional
+    public SongDTO updateUploadedSong(Long id,
+                                      String title,
+                                      String description,
+                                      Set<Long> artistIds,
+                                      Set<Long> tagIds,
+                                      MultipartFile newSongFile,
+                                      MultipartFile newImageFile) {
+
+        Song song = songRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Song not found: " + id));
+
+        User currentUser = getCurrentAuthenticatedUser();
+        boolean isOwner = song.getUploader() != null && Objects.equals(song.getUploader().getId(), currentUser.getId());
+        boolean isAdmin = currentUser.getRole() == Role.ADMIN;
+
+        if (!isOwner && !isAdmin) {
+            throw new AccessDeniedException("Bạn không có quyền chỉnh sửa bài hát này");
+        }
+
+        if (title != null && !title.isBlank()) {
+            song.setTitle(title.trim());
+        }
+        if (description != null) {
+            song.setDescription(description);
+        }
+        if (artistIds != null) {
+            song.setArtists(fetchArtistsByIds(artistIds));
+        }
+        if (tagIds != null) {
+            song.setTags(fetchTagsByIds(tagIds));
+        }
+
+        try {
+            if (newSongFile != null && !newSongFile.isEmpty()) {
+                String songFilePath = firebaseStorageService.uploadFile(newSongFile);
+                song.setFilePath(songFilePath);
+                song.setDuration(calculateDuration(songFilePath));
+            }
+
+            if (newImageFile != null && !newImageFile.isEmpty()) {
+                String imageFilePath = firebaseStorageService.uploadFile(newImageFile);
+                song.setImageUrl(imageFilePath);
+            }
+        } catch (IOException ex) {
+            throw new RuntimeException("Không thể cập nhật file bài hát. Vui lòng thử lại!", ex);
+        }
+
+        Song updatedSong = songRepository.save(song);
+        return toDTO(updatedSong);
     }
 
     @Transactional
