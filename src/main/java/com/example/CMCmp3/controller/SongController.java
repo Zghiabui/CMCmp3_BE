@@ -27,8 +27,12 @@ public class SongController {
     private final SongService songService;
 
     @GetMapping
-    public ResponseEntity<List<SongDTO>> getAll() {
-        return ResponseEntity.ok(songService.getAllSongsList());
+    public ResponseEntity<Page<SongDTO>> getAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(songService.getAllSongs(pageable));
     }
 
     @GetMapping("/{id}")

@@ -199,10 +199,7 @@ public class SongService {
         return songRepository.findAll(pageable).map(this::toDTO);
     }
 
-    @Transactional(readOnly = true)
-    public List<SongDTO> getAllSongsList() {
-        return songRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
-    }
+
 
     @Transactional(readOnly = true)
     public SongDTO getById(Long id) {
