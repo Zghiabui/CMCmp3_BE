@@ -7,7 +7,6 @@ import org.springframework.web.multipart.MultipartFile; // Import MultipartFile
 
 @Data
 public class UpdatePlaylistDTO {
-    @NotBlank(message = "Tên playlist không được để trống")
     private String name;
 
     private String description; // Add description field
