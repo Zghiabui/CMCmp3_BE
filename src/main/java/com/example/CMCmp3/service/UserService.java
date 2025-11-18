@@ -38,22 +38,11 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final FirebaseStorageService firebaseStorageService;
 
-    @Value("${file.upload-dir}")
-    private String uploadDir;
-    private Path fileStorageLocation;
 
-    @PostConstruct
-    public void init() {
-        this.fileStorageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
-        try {
-            Files.createDirectories(this.fileStorageLocation);
-        } catch (Exception ex) {
-            throw new RuntimeException("Could not create the directory where the uploaded files will be stored.", ex);
-        }
-    }
 
-    private UserDTO convertToDTO(User u) {
+    public UserDTO convertToDTO(User u) {
         return new UserDTO(
                 u.getId(),
                 u.getEmail(),
@@ -61,7 +50,10 @@ public class UserService {
                 u.getGender(),
                 u.getPhone(),       // Entity 'phone' -> DTO 'phoneNumber' (khớp vị trí constructor)
                 u.getAvatarUrl(),
-                Set.of(u.getRole().name()) // Dùng Set<String> khớp với DTO
+                Set.of(u.getRole().name()), // Dùng Set<String> khớp với DTO
+                u.getCreatedAt(),
+                u.getUpdatedAt(),
+                u.getLastLoginTime()
         );
     }
 
@@ -129,6 +121,8 @@ public class UserService {
         if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
             throw new RuntimeException("Mật khẩu không đúng");
         }
+        user.setLastLoginTime(java.time.LocalDateTime.now());
+        userRepository.save(user);
         return user;
     }
 
@@ -148,25 +142,20 @@ public class UserService {
 
     public UserDTO updateAvatar(Authentication authentication, MultipartFile file) {
         User user = getCurrentUser(authentication);
-        String fileName = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
+
         try {
-            if (fileName.contains("..")) {
-                throw new RuntimeException("Sorry! Filename contains invalid path sequence " + fileName);
-            }
-            String newFileName = UUID.randomUUID().toString() + "_" + fileName;
-            Path targetLocation = this.fileStorageLocation.resolve(newFileName);
-            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+            // 1. Gọi service để upload file lên Firebase
+            String fileDownloadUri = firebaseStorageService.uploadFile(file);
 
-            String fileDownloadUri = ServletUriComponentsBuilder.fromCurrentContextPath()
-                    .path("/images/")
-                    .path(newFileName)
-                    .toUriString();
-
+            // 2. Lưu URL của Firebase vào CSDL
             user.setAvatarUrl(fileDownloadUri);
             User updatedUser = userRepository.save(user);
+
             return convertToDTO(updatedUser); // Dùng hàm convert chuẩn
+
         } catch (IOException ex) {
-            throw new RuntimeException("Could not store file " + fileName + ". Please try again!", ex);
+            // Ném ra lỗi nếu Firebase upload thất bại
+            throw new RuntimeException("Không thể lưu file. Vui lòng thử lại!", ex);
         }
     }
 
