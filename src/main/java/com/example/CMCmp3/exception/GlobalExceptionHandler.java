@@ -14,14 +14,14 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, String>> handleRuntimeException(RuntimeException ex) {
-
-        if (ex.getMessage().contains("Không tìm thấy")) {
+        String message = ex.getMessage();
+        if (message != null && message.contains("Không tìm thấy")) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("error", ex.getMessage()));
+                    .body(Map.of("error", message));
         }
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", ex.getMessage()));
+                .body(Map.of("error", message != null ? message : "An unexpected error occurred"));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
