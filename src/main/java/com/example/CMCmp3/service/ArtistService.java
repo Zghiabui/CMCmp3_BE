@@ -106,7 +106,6 @@ public class ArtistService {
         dto.setId(a.getId());
         dto.setName(a.getName());
         dto.setImageUrl(a.getImageUrl());
-        dto.setSongCount(a.getSongCount());
         return dto;
     }
 
