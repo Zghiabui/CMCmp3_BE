@@ -158,8 +158,13 @@ public class PlaylistService {
         }
 
         // Update basic fields
-        playlist.setTitle(dto.getName());
-        playlist.setDescription(dto.getDescription());
+        Optional.ofNullable(dto.getName())
+                .filter(name -> !name.trim().isEmpty())
+                .ifPresent(playlist::setTitle);
+
+        Optional.ofNullable(dto.getDescription())
+                .filter(description -> !description.trim().isEmpty())
+                .ifPresent(playlist::setDescription);
         playlist.setPrivacy(PlaylistPrivacy.valueOf(dto.getPrivacy().toUpperCase()));
 
         // Handle artistIds update
