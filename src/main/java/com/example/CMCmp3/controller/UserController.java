@@ -1,8 +1,10 @@
 package com.example.CMCmp3.controller;
 
+import com.example.CMCmp3.dto.ChangePasswordDTO; // Import ChangePasswordDTO
 import com.example.CMCmp3.dto.UpdateUserDTO;
 import com.example.CMCmp3.dto.UserDTO;
 import com.example.CMCmp3.service.UserService;
+import jakarta.validation.Valid; // Import @Valid
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -44,6 +46,16 @@ public class UserController {
     @PatchMapping("/me/avatar")
     public ResponseEntity<UserDTO> updateMyAvatar(Authentication authentication, @RequestParam("file") MultipartFile file) {
         return ResponseEntity.ok(userService.updateAvatar(authentication, file));
+    }
+
+    /**
+     * PUT /api/users/me/password
+     * Thay đổi mật khẩu của user đang đăng nhập
+     */
+    @PutMapping("/me/password")
+    public ResponseEntity<Void> changePassword(Authentication authentication, @Valid @RequestBody ChangePasswordDTO dto) {
+        userService.changePassword(authentication, dto);
+        return ResponseEntity.ok().build();
     }
 
     // --- ĐÃ XÓA CÁC ENDPOINT ADMIN BỊ TRÙNG LẶP KHỎI FILE NÀY ---
