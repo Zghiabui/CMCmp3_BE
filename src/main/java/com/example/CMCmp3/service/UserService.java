@@ -1,5 +1,6 @@
 package com.example.CMCmp3.service;
 
+import com.example.CMCmp3.dto.ChangePasswordDTO; // Import ChangePasswordDTO
 import com.example.CMCmp3.dto.RegisterDTO;
 import com.example.CMCmp3.dto.UpdateUserDTO;
 import com.example.CMCmp3.dto.UserDTO;
@@ -159,6 +160,19 @@ public class UserService {
         }
     }
 
+    @Transactional
+    public void changePassword(Authentication authentication, ChangePasswordDTO dto) {
+        User user = getCurrentUser(authentication);
+
+        // Verify old password
+        if (!passwordEncoder.matches(dto.getOldPassword(), user.getPassword())) {
+            throw new RuntimeException("Mật khẩu cũ không đúng.");
+        }
+
+        // Encode and set new password
+        user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
+        userRepository.save(user);
+    }
 
     public void resetPassword(String email, String newPassword) {
         User user = userRepository.findByEmail(email)
