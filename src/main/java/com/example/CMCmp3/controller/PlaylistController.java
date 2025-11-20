@@ -80,6 +80,13 @@ public class PlaylistController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/{id}/like")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> toggleLikePlaylist(@PathVariable Long id) {
+        playlistService.toggleLikePlaylist(id);
+        return ResponseEntity.ok().build();
+    }
+
     // Lấy danh sách Playlist của người dùng hiện tại
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")

@@ -86,6 +86,9 @@ public class User implements UserDetails {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<SongLike> likedSongs = new HashSet<>();
 
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<PlaylistLike> likedPlaylists = new HashSet<>();
+
     // Spring Security
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
