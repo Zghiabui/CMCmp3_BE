@@ -1,5 +1,10 @@
 package com.example.CMCmp3.service;
 
+import com.example.CMCmp3.entity.PlaylistLike;
+import com.example.CMCmp3.entity.PlaylistLikeId;
+import com.example.CMCmp3.entity.NotificationType;
+import com.example.CMCmp3.repository.PlaylistLikeRepository;
+import com.example.CMCmp3.service.NotificationService;
 import com.example.CMCmp3.dto.ArtistDTO;
 import com.example.CMCmp3.dto.CreatePlaylistDTO;
 import com.example.CMCmp3.dto.PlaylistDTO;
@@ -47,6 +52,8 @@ public class PlaylistService {
     private final SongRepository songRepository;
     private final FirebaseStorageService firebaseStorageService;
     private final ArtistRepository artistRepository;
+    private final PlaylistLikeRepository playlistLikeRepository;
+    private final NotificationService notificationService;
 
     // --- MAPPING ---
     private PlaylistDTO toDTO(Playlist p) {
@@ -293,20 +300,136 @@ public class PlaylistService {
         return toDTO(playlistRepository.save(p));
     }
 
-    @Transactional
-    public void deletePlaylist(Long id) {
-        String email = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername();
-        User currentUser = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    
 
-        Playlist playlist = playlistRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Playlist not found"));
+        @Transactional
 
-        // Check if current user is the owner or an ADMIN
-        if (!playlist.getOwner().getId().equals(currentUser.getId()) && !currentUser.getRole().equals(Role.ADMIN)) {
-            throw new AccessDeniedException("You are not authorized to delete this playlist.");
+        public void deletePlaylist(Long id) {
+
+            String email = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername();
+
+            User currentUser = userRepository.findByEmail(email)
+
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+    
+
+            Playlist playlist = playlistRepository.findById(id)
+
+                    .orElseThrow(() -> new NoSuchElementException("Playlist not found"));
+
+    
+
+            // Check if current user is the owner or an ADMIN
+
+            if (!playlist.getOwner().getId().equals(currentUser.getId()) && !currentUser.getRole().equals(Role.ADMIN)) {
+
+                throw new AccessDeniedException("You are not authorized to delete this playlist.");
+
+            }
+
+    
+
+            playlistRepository.deleteById(id);
+
         }
 
-        playlistRepository.deleteById(id);
+    
+
+        private User getCurrentUser() {
+
+            String email = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername();
+
+            return userRepository.findByEmail(email)
+
+                    .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
+        }
+
+    
+
+        // --- LIKE / UNLIKE ---
+
+    
+
+        @Transactional
+
+        public void likePlaylist(Long playlistId) {
+
+            User currentUser = getCurrentUser();
+
+            Playlist playlist = playlistRepository.findById(playlistId)
+
+                    .orElseThrow(() -> new NoSuchElementException("Playlist not found: " + playlistId));
+
+    
+
+            PlaylistLikeId likeId = new PlaylistLikeId(currentUser.getId(), playlist.getId());
+
+            if (playlistLikeRepository.existsById(likeId)) {
+
+                return; // Already liked
+
+            }
+
+    
+
+            PlaylistLike like = new PlaylistLike(currentUser, playlist);
+
+            playlistLikeRepository.save(like);
+
+    
+
+            playlist.setLikeCount(playlist.getLikeCount() + 1);
+
+            playlistRepository.save(playlist);
+
+    
+
+            // Create notification for playlist owner
+
+            if (playlist.getOwner() != null) {
+
+                String message = currentUser.getDisplayName() + " đã thích playlist \"" + playlist.getTitle() + "\" của bạn.";
+
+                String link = "/playlist/" + playlist.getId();
+
+                notificationService.createNotification(playlist.getOwner(), NotificationType.LIKE_PLAYLIST, message, link);
+
+            }
+
+        }
+
+    
+
+        @Transactional
+
+        public void unlikePlaylist(Long playlistId) {
+
+            User currentUser = getCurrentUser();
+
+            Playlist playlist = playlistRepository.findById(playlistId)
+
+                    .orElseThrow(() -> new NoSuchElementException("Playlist not found: " + playlistId));
+
+    
+
+            PlaylistLikeId likeId = new PlaylistLikeId(currentUser.getId(), playlist.getId());
+
+            if (playlistLikeRepository.existsById(likeId)) {
+
+                playlistLikeRepository.deleteById(likeId);
+
+    
+
+                playlist.setLikeCount(Math.max(0, playlist.getLikeCount() - 1));
+
+                playlistRepository.save(playlist);
+
+            }
+
+        }
+
     }
-}
+
+    

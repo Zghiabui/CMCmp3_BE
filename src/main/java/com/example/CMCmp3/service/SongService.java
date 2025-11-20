@@ -37,6 +37,7 @@ public class SongService {
     private final UserRepository userRepository;
     private final SongLikeRepository songLikeRepository;
     private final FirebaseStorageService firebaseStorageService;
+    private final NotificationService notificationService;
 
     private User getCurrentAuthenticatedUser() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -417,51 +418,111 @@ public class SongService {
 
     
 
-        @Transactional
-
-        public void likeSong(Long songId) {
-
-            // 1. Get current user and song
-
-            String email = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername();
-
-            User currentUser = userRepository.findByEmail(email)
-
-                    .orElseThrow(() -> new RuntimeException("Current user not found"));
-
-            Song song = songRepository.findById(songId)
-
-                    .orElseThrow(() -> new NoSuchElementException("Song not found: " + songId));
+                @Transactional
 
     
 
-            // 2. Check if already liked
-
-            SongLikeId likeId = new SongLikeId(currentUser.getId(), song.getId());
-
-            if (songLikeRepository.existsById(likeId)) {
-
-                // Optional: throw an exception or just return
-
-                return; // Already liked, do nothing
-
-            }
+                public void likeSong(Long songId) {
 
     
 
-            // 3. Create new like and update count
-
-            SongLike songLike = new SongLike(currentUser, song);
-
-            songLikeRepository.save(songLike);
+                    // 1. Get current user and song
 
     
 
-            song.setLikeCount(song.getLikeCount() + 1);
+                    User currentUser = getCurrentAuthenticatedUser();
 
-            songRepository.save(song);
+    
 
-        }
+                    Song song = songRepository.findById(songId)
+
+    
+
+                            .orElseThrow(() -> new NoSuchElementException("Song not found: " + songId));
+
+    
+
+        
+
+    
+
+                    // 2. Check if already liked
+
+    
+
+                    SongLikeId likeId = new SongLikeId(currentUser.getId(), song.getId());
+
+    
+
+                    if (songLikeRepository.existsById(likeId)) {
+
+    
+
+                        return; // Already liked, do nothing
+
+    
+
+                    }
+
+    
+
+        
+
+    
+
+                    // 3. Create new like and update count
+
+    
+
+                    SongLike songLike = new SongLike(currentUser, song);
+
+    
+
+                    songLikeRepository.save(songLike);
+
+    
+
+        
+
+    
+
+                    song.setLikeCount(song.getLikeCount() + 1);
+
+    
+
+                    songRepository.save(song);
+
+    
+
+        
+
+    
+
+                    // 4. Create Notification for the song's uploader
+
+    
+
+                    if (song.getUploader() != null) {
+
+    
+
+                        String message = currentUser.getDisplayName() + " đã thích bài hát \"" + song.getTitle() + "\" của bạn.";
+
+    
+
+                        String link = "/song/" + song.getId();
+
+    
+
+                        notificationService.createNotification(song.getUploader(), NotificationType.LIKE_SONG, message, link);
+
+    
+
+                    }
+
+    
+
+                }
 
     
 

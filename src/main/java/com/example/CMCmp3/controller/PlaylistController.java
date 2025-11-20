@@ -101,4 +101,20 @@ public class PlaylistController {
             @RequestBody UpdatePlaylistSongsDTO dto) {
         return ResponseEntity.ok(playlistService.updateSongsInPlaylist(playlistId, dto));
     }
+
+    // --- Like / Unlike Endpoints ---
+
+    @PostMapping("/{id}/like")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> likePlaylist(@PathVariable Long id) {
+        playlistService.likePlaylist(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/unlike")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> unlikePlaylist(@PathVariable Long id) {
+        playlistService.unlikePlaylist(id);
+        return ResponseEntity.ok().build();
+    }
 }
