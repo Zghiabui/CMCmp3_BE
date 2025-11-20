@@ -94,6 +94,13 @@ public class PlaylistController {
         return ResponseEntity.ok(playlistService.findMyPlaylists());
     }
 
+    // Lấy danh sách Playlist đã thích của người dùng hiện tại
+    @GetMapping("/me/liked")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<PlaylistDTO>> getLikedPlaylistsForCurrentUser() {
+        return ResponseEntity.ok(playlistService.getLikedPlaylistsForCurrentUser());
+    }
+
     // Lấy danh sách bài hát trong một playlist cụ thể
     @GetMapping("/{playlistId}/songs")
     public ResponseEntity<List<SongDTO>> getPlaylistSongs(@PathVariable Long playlistId) {

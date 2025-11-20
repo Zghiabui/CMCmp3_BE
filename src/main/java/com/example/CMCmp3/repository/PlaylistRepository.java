@@ -46,4 +46,6 @@ public interface PlaylistRepository extends JpaRepository<Playlist, Long> {
     // Top yêu thích
     @Query("SELECT DISTINCT p FROM Playlist p LEFT JOIN FETCH p.owner LEFT JOIN FETCH p.playlistSongs ps LEFT JOIN FETCH ps.song ORDER BY p.likeCount DESC")
     List<Playlist> findTopByLikeCount(Pageable pageable);
+    @Query("SELECT pl.playlist FROM PlaylistLike pl WHERE pl.user.id = :userId")
+    List<Playlist> findLikedPlaylistsByUserId(@Param("userId") Long userId);
 }
