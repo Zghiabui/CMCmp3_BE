@@ -339,6 +339,20 @@ public class PlaylistService {
         return toDTO(playlistRepository.save(p));
     }
 
+    @Transactional(readOnly = true)
+    public List<PlaylistDTO> getLikedPlaylistsForCurrentUser() {
+        // 1. Get current user
+        User currentUser = getCurrentAuthenticatedUser();
+
+        // 2. Get liked playlists using the new repository method
+        List<Playlist> likedPlaylists = playlistRepository.findLikedPlaylistsByUserId(currentUser.getId());
+
+        // 3. Map to DTOs and return
+        return likedPlaylists.stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     public void deletePlaylist(Long id) {
         String email = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername();
