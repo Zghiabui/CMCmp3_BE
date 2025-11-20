@@ -23,4 +23,5 @@ public class PlaylistDTO {
     private int songCount; // Số lượng bài hát trong playlist
     private String ownerName; // Tên người tạo
     private LocalDateTime createdAt;
+    private boolean likedByCurrentUser;
 }

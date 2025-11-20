@@ -36,7 +36,10 @@ import java.util.Set;
 import java.util.HashSet;
 import java.util.stream.Collectors;
 import java.util.Optional;
-
+import com.example.CMCmp3.repository.PlaylistLikeRepository;
+import com.example.CMCmp3.entity.PlaylistLike;
+import com.example.CMCmp3.entity.PlaylistLikeId;
+import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
 public class PlaylistService {
@@ -47,7 +50,41 @@ public class PlaylistService {
     private final SongRepository songRepository;
     private final FirebaseStorageService firebaseStorageService;
     private final ArtistRepository artistRepository;
+    private final PlaylistLikeRepository playlistLikeRepository;
 
+    private User getCurrentAuthenticatedUser() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String email;
+        if (principal instanceof UserDetails) {
+            email = ((UserDetails)principal).getUsername();
+        } else {
+            email = principal.toString();
+        }
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Current user not found in database"));
+    }
+
+    @Transactional
+    public void toggleLikePlaylist(Long playlistId) {
+        User currentUser = getCurrentAuthenticatedUser();
+        Playlist playlist = playlistRepository.findById(playlistId)
+                .orElseThrow(() -> new NoSuchElementException("Playlist not found with ID: " + playlistId));
+
+        PlaylistLikeId likeId = new PlaylistLikeId(currentUser.getId(), playlist.getId());
+        Optional<PlaylistLike> existingLike = playlistLikeRepository.findById(likeId);
+
+        if (existingLike.isPresent()) {
+            // Unlike
+            playlistLikeRepository.delete(existingLike.get());
+            playlist.setLikeCount(Math.max(0, playlist.getLikeCount() - 1));
+        } else {
+            // Like
+            PlaylistLike newLike = new PlaylistLike(likeId, currentUser, playlist, LocalDateTime.now());
+            playlistLikeRepository.save(newLike);
+            playlist.setLikeCount(playlist.getLikeCount() + 1);
+        }
+        playlistRepository.save(playlist);
+    }
     // --- MAPPING ---
     private PlaylistDTO toDTO(Playlist p) {
         PlaylistDTO dto = new PlaylistDTO();
@@ -79,6 +116,15 @@ public class PlaylistService {
             dto.setArtists(p.getArtists().stream().map(this::toArtistDTO).collect(Collectors.toList()));
         } else {
             dto.setArtists(List.of()); // Return empty list if no artists
+        }
+
+        try {
+            User currentUser = getCurrentAuthenticatedUser();
+            boolean liked = p.getLikes().stream()
+                    .anyMatch(like -> like.getUser().getId().equals(currentUser.getId()));
+            dto.setLikedByCurrentUser(liked);
+        } catch (RuntimeException e) {
+            dto.setLikedByCurrentUser(false);
         }
 
         return dto;
@@ -310,3 +356,5 @@ public class PlaylistService {
         playlistRepository.deleteById(id);
     }
 }
+
+
