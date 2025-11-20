@@ -38,6 +38,9 @@ public class Song {
     @Column(columnDefinition = "bigint default 0")
     private Long likeCount = 0L;
 
+    @Column(columnDefinition = "bigint default 0")
+    private Long commentCount = 0L;
+
     @Column(columnDefinition = "TEXT")
     private String description;
 
@@ -53,6 +56,9 @@ public class Song {
 
     @OneToMany(mappedBy = "song", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<SongLike> likes = new HashSet<>();
+
+    @OneToMany(mappedBy = "song", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<SongComment> comments = new HashSet<>();
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
