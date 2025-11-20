@@ -40,7 +40,7 @@ public class FirebaseConfig {
                     .setStorageBucket(bucketName)
                     .build();
 
-            // Khởi tạo App nếu nó chưa tồn tại
+            // Khởi tạo App
             if (FirebaseApp.getApps().isEmpty()) {
                 return FirebaseApp.initializeApp(options);
             } else {

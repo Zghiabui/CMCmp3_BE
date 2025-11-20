@@ -41,17 +41,15 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final FirebaseStorageService firebaseStorageService;
 
-
-
     public UserDTO convertToDTO(User u) {
         return new UserDTO(
                 u.getId(),
                 u.getEmail(),
                 u.getDisplayName(),
                 u.getGender(),
-                u.getPhone(),       // Entity 'phone' -> DTO 'phoneNumber' (khớp vị trí constructor)
+                u.getPhone(),
                 u.getAvatarUrl(),
-                Set.of(u.getRole().name()), // Dùng Set<String> khớp với DTO
+                Set.of(u.getRole().name()),
                 u.getCreatedAt(),
                 u.getUpdatedAt(),
                 u.getLastLoginTime()
@@ -79,11 +77,9 @@ public class UserService {
         var existingOpt = userRepository.findByEmailIgnoreCase(email);
         if (existingOpt.isPresent()) {
             User existing = existingOpt.get();
-            // If user is already active, prevent re-registration
             if (existing.getStatus() == UserStatus.ACTIVE) {
                 throw new RuntimeException("Email đã được đăng ký");
             }
-            // If user exists but is not active, update and reactivate them
             if (StringUtils.hasText(phone) && !phone.equals(existing.getPhone()) && userRepository.existsByPhone(phone)) {
                 throw new RuntimeException("Số điện thoại đã được sử dụng");
             }
@@ -95,7 +91,6 @@ public class UserService {
             return userRepository.save(existing);
         }
 
-        // If user does not exist, create a new one
         if (StringUtils.hasText(phone) && userRepository.existsByPhone(phone)) {
             throw new RuntimeException("Số điện thoại đã được sử dụng");
         }
@@ -129,33 +124,33 @@ public class UserService {
 
     public UserDTO getMe(Authentication authentication) {
         User user = getCurrentUser(authentication);
-        return convertToDTO(user); // Dùng hàm convert chuẩn
+        return convertToDTO(user);
     }
 
     public UserDTO updateMe(Authentication authentication, UpdateUserDTO userDTO) {
         User user = getCurrentUser(authentication);
         user.setDisplayName(userDTO.getDisplayName());
         user.setGender(userDTO.getGender());
-        user.setPhone(userDTO.getPhoneNumber()); // Map từ phoneNumber DTO -> phone Entity
+        user.setPhone(userDTO.getPhoneNumber());
         User updatedUser = userRepository.save(user);
-        return convertToDTO(updatedUser); // Dùng hàm convert chuẩn
+        return convertToDTO(updatedUser);
     }
 
     public UserDTO updateAvatar(Authentication authentication, MultipartFile file) {
         User user = getCurrentUser(authentication);
 
         try {
-            // 1. Gọi service để upload file lên Firebase
+            // Gọi service để upload file lên Firebase
             String fileDownloadUri = firebaseStorageService.uploadFile(file);
 
-            // 2. Lưu URL của Firebase vào CSDL
+            // Lưu URL của Firebase vào CSDL
             user.setAvatarUrl(fileDownloadUri);
             User updatedUser = userRepository.save(user);
 
-            return convertToDTO(updatedUser); // Dùng hàm convert chuẩn
+            return convertToDTO(updatedUser);
 
         } catch (IOException ex) {
-            // Ném ra lỗi nếu Firebase upload thất bại
+            // Ném ra lỗi
             throw new RuntimeException("Không thể lưu file. Vui lòng thử lại!", ex);
         }
     }
@@ -164,12 +159,10 @@ public class UserService {
     public void changePassword(Authentication authentication, ChangePasswordDTO dto) {
         User user = getCurrentUser(authentication);
 
-        // Verify old password
         if (!passwordEncoder.matches(dto.getOldPassword(), user.getPassword())) {
             throw new RuntimeException("Mật khẩu cũ không đúng.");
         }
 
-        // Encode and set new password
         user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
         userRepository.save(user);
     }

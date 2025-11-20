@@ -68,17 +68,16 @@ public class PlaylistService {
             dto.setSongCount(0);
         }
 
-        // Lấy tên chủ sở hữu (User)
         if (p.getOwner() != null) {
             dto.setOwnerName(p.getOwner().getDisplayName());
         }
-        dto.setPrivacy(p.getPrivacy().name()); // Map privacy enum to String
+        dto.setPrivacy(p.getPrivacy().name());
 
         // Map associated artists
         if (p.getArtists() != null && !p.getArtists().isEmpty()) {
             dto.setArtists(p.getArtists().stream().map(this::toArtistDTO).collect(Collectors.toList()));
         } else {
-            dto.setArtists(List.of()); // Return empty list if no artists
+            dto.setArtists(List.of());
         }
 
         return dto;
@@ -93,7 +92,7 @@ public class PlaylistService {
         return dto;
     }
 
-    // --- LOGIC ---
+    //  LOGIC
 
     @Transactional(readOnly = true)
     public List<PlaylistDTO> getAll() {
@@ -136,12 +135,10 @@ public class PlaylistService {
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new NoSuchElementException("Playlist not found with ID: " + playlistId));
 
-        // Authorization check
         if (!playlist.getOwner().getId().equals(currentUser.getId()) && !currentUser.getRole().equals(Role.ADMIN)) {
             throw new AccessDeniedException("You are not authorized to modify this playlist.");
         }
 
-        // Handle image file update
         MultipartFile imageFile = dto.getImageFile();
         if (imageFile != null) {
             if (!imageFile.isEmpty()) {
@@ -152,12 +149,10 @@ public class PlaylistService {
                     throw new RuntimeException("Could not upload image for playlist: " + e.getMessage());
                 }
             } else {
-                // If an empty file is sent, it means the user wants to remove the image
                 playlist.setImageUrl(null);
             }
         }
 
-        // Update basic fields
         Optional.ofNullable(dto.getName())
                 .filter(name -> !name.trim().isEmpty())
                 .ifPresent(playlist::setTitle);
@@ -167,7 +162,6 @@ public class PlaylistService {
                 .ifPresent(playlist::setDescription);
         playlist.setPrivacy(PlaylistPrivacy.valueOf(dto.getPrivacy().toUpperCase()));
 
-        // Handle artistIds update
         if (dto.getArtistIds() != null && !dto.getArtistIds().isEmpty()) {
             Set<Long> artistIds = Arrays.stream(dto.getArtistIds().split(","))
                                         .map(String::trim)
@@ -185,7 +179,6 @@ public class PlaylistService {
             }
             playlist.setArtists(new HashSet<>(artists));
         } else {
-            // If artistIds is null or empty, clear existing artists
             playlist.setArtists(new HashSet<>());
         }
 
@@ -210,13 +203,12 @@ public class PlaylistService {
 
         Set<PlaylistSong> currentPlaylistSongs = playlist.getPlaylistSongs();
 
-        // Handle additions
         if (dto.getAdd() != null && !dto.getAdd().isEmpty()) {
             for (Long songId : dto.getAdd()) {
                 Song songToAdd = songRepository.findById(songId)
                         .orElseThrow(() -> new NoSuchElementException("Song not found with ID: " + songId));
 
-                // Check for duplicates
+                // Check lặp
                 boolean alreadyExists = currentPlaylistSongs.stream()
                         .anyMatch(ps -> ps.getSong().getId().equals(songId));
 
@@ -237,10 +229,10 @@ public class PlaylistService {
             currentPlaylistSongs.removeIf(ps -> dto.getRemove().contains(ps.getSong().getId()));
         }
 
-        playlist.setPlaylistSongs(currentPlaylistSongs); // Update the set
-        playlistRepository.save(playlist); // Save changes to the playlist and its songs
+        playlist.setPlaylistSongs(currentPlaylistSongs);
+        playlistRepository.save(playlist);
 
-        return getSongsByPlaylistId(playlistId); // Return the updated list of songs
+        return getSongsByPlaylistId(playlistId);
     }
 
     // Lấy Top Playlists (Tương tự như SongService)
@@ -270,7 +262,7 @@ public class PlaylistService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         String imageUrl = null;
-        // Upload image to Firebase if it exists
+        // Upload ảnh lên firebase
         if (dto.getImageFile() != null && !dto.getImageFile().isEmpty()) {
             try {
                 imageUrl = firebaseStorageService.uploadFile(dto.getImageFile());
@@ -281,14 +273,14 @@ public class PlaylistService {
         }
 
         Playlist p = new Playlist();
-        p.setTitle(dto.getName()); // Use dto.getName()
+        p.setTitle(dto.getName());
         p.setDescription(dto.getDescription());
-        p.setImageUrl(imageUrl); // Set the uploaded image URL
-        p.setOwner(currentUser); // Gán chủ sở hữu
+        p.setImageUrl(imageUrl);
+        p.setOwner(currentUser);
         p.setPlayCount(0L);
         p.setLikeCount(0L);
         p.setCommentCount(0L);
-        p.setPrivacy(PlaylistPrivacy.valueOf(dto.getPrivacy().toUpperCase())); // Set privacy from DTO
+        p.setPrivacy(PlaylistPrivacy.valueOf(dto.getPrivacy().toUpperCase()));
 
         return toDTO(playlistRepository.save(p));
     }
@@ -302,11 +294,10 @@ public class PlaylistService {
         Playlist playlist = playlistRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Playlist not found"));
 
-        // Check if current user is the owner or an ADMIN
+        // Check sở hữu, admin
         if (!playlist.getOwner().getId().equals(currentUser.getId()) && !currentUser.getRole().equals(Role.ADMIN)) {
             throw new AccessDeniedException("You are not authorized to delete this playlist.");
         }
-
         playlistRepository.deleteById(id);
     }
 }

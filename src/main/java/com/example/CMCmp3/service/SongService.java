@@ -50,7 +50,7 @@ public class SongService {
                 .orElseThrow(() -> new RuntimeException("Current user not found in database"));
     }
 
-    // 1. HELPERS: FETCHING & CALCULATION (Logic phụ trợ)
+    // HELPERS
 
     private Set<Artist> fetchArtistsByIds(Set<Long> artistIds) {
         if (artistIds == null || artistIds.isEmpty()) {
@@ -70,7 +70,6 @@ public class SongService {
         File tempFile = null;
         try {
             File fileToRead;
-            // Nếu là URL (Firebase/Cloud), phải tải về file tạm mới đọc được metadata
             if (filePath.startsWith("http://") || filePath.startsWith("https://")) {
                 tempFile = File.createTempFile("song_duration_calc_", ".mp3");
                 try (InputStream in = new URL(filePath).openStream();
@@ -83,7 +82,6 @@ public class SongService {
                 }
                 fileToRead = tempFile;
             } else {
-                // Nếu là đường dẫn local
                 fileToRead = new File(filePath);
             }
 
@@ -96,29 +94,21 @@ public class SongService {
             System.err.println("Warning: Không thể tính duration cho file: " + filePath + ". Lỗi: " + e.getMessage());
             return 0;
         } finally {
-            // Quan trọng: Xóa file tạm sau khi dùng xong
             if (tempFile != null && tempFile.exists()) {
                 tempFile.delete();
             }
         }
     }
 
-    // =================================================================
-    // 2. HELPERS: MAPPERS (Chuyển đổi dữ liệu)
-    // =================================================================
+    //  HELPERS
 
-    /**
-     * Convert: Entity -> DTO (Response)
-     */
     public SongDTO toDTO(Song s) {
         SongDTO dto = new SongDTO();
         dto.setId(s.getId());
         dto.setTitle(s.getTitle());
         dto.setDuration(s.getDuration());
-        dto.setFilePath(s.getFilePath()); // Đây sẽ là URL Firebase của file MP3
-        dto.setImageUrl(s.getImageUrl()); // Đây sẽ là URL Firebase của file ảnh
-        // ... (Giữ nguyên phần còn lại của hàm)
-
+        dto.setFilePath(s.getFilePath());
+        dto.setImageUrl(s.getImageUrl());
         dto.setListenCount(s.getListenCount());
         dto.setLikeCount(s.getLikeCount());
         dto.setDescription(s.getDescription());
@@ -166,9 +156,6 @@ public class SongService {
         return dto;
     }
 
-    /**
-     * Convert: CreateDTO -> Entity (Dùng khi tạo mới)
-     */
     private Song convertToEntity(CreateSongDTO dto) {
         Song song = new Song();
         song.setTitle(dto.getTitle());
@@ -180,19 +167,17 @@ public class SongService {
         song.setListenCount(0L);
         song.setLikeCount(0L);
 
-        // Gọi Helper để lấy Entity từ ID
+        // lấy Entity từ ID
         song.setArtists(fetchArtistsByIds(dto.getArtistIds()));
         song.setTags(fetchTagsByIds(dto.getTagIds()));
 
-        // Gọi Helper tính Duration
+        // tính Duration
         song.setDuration(calculateDuration(dto.getFilePath()));
 
         return song;
     }
 
-    // =================================================================
-    // 3. READ OPERATIONS (Đọc dữ liệu)
-    // =================================================================
+    // READ
 
     @Transactional(readOnly = true)
     public Page<SongDTO> getAllSongs(Pageable pageable) {
@@ -208,7 +193,7 @@ public class SongService {
         return toDTO(song);
     }
 
-    // --- TOP CHARTS (Sử dụng logic Repository trả về List Entity) ---
+    // TOP CHARTS
 
     @Transactional(readOnly = true)
     public List<SongDTO> getTopSongs(int limit) {
@@ -230,29 +215,21 @@ public class SongService {
 
     @Transactional(readOnly = true)
     public List<SongDTO> getUploadedSongsForCurrentUser() {
-        // 1. Get current user
         String email = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername();
         User currentUser = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Current user not found in database"));
-
-        // 2. Find songs by uploader
         List<Song> songs = songRepository.findByUploader(currentUser);
-
-        // 3. Map to DTOs and return
         return songs.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<SongDTO> getFavoriteSongsForCurrentUser() {
-        // 1. Get current user
         String email = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername();
         User currentUser = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Current user not found in database"));
 
-        // 2. Get liked songs using the new repository method
         List<Song> likedSongs = songRepository.findLikedSongsByUserId(currentUser.getId());
 
-        // 3. Map to DTOs and return
         return likedSongs.stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
@@ -266,7 +243,7 @@ public class SongService {
         return songs.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
-    // 4. WRITE OPERATIONS (Ghi dữ liệu)
+    // WRITE
 
     @Transactional
     public SongDTO createSong(CreateSongDTO createSongDTO) {
@@ -278,32 +255,29 @@ public class SongService {
     @Transactional
     public SongDTO createSongWithUpload(String title, String description, Set<Long> artistIds, Set<Long> tagIds, MultipartFile songFile, MultipartFile imageFile) {
         try {
-            // 0. Get current user
             User currentUser = getCurrentAuthenticatedUser();
 
-            // 1. Store files (SỬ DỤNG FIREBASE)
-            String songFilePath = firebaseStorageService.uploadFile(songFile); // <-- SỬA LẠI
-            String imageFilePath = firebaseStorageService.uploadFile(imageFile); // <-- SỬA LẠI
+            // Store files (SỬ DỤNG FIREBASE)
+            String songFilePath = firebaseStorageService.uploadFile(songFile);
+            String imageFilePath = firebaseStorageService.uploadFile(imageFile);
 
-            // 2. Create new Song entity
             Song song = new Song();
             song.setTitle(title);
             song.setDescription(description);
-            song.setFilePath(songFilePath); // <-- URL từ Firebase
-            song.setImageUrl(imageFilePath); // <-- URL từ Firebase
-            song.setUploader(currentUser); // Set the uploader
+            song.setFilePath(songFilePath);
+            song.setImageUrl(imageFilePath);
+            song.setUploader(currentUser);
 
-            // 3. Set default values and relationships
+            // Set default values và relationships
             song.setListenCount(0L);
             song.setLikeCount(0L);
             song.setArtists(fetchArtistsByIds(artistIds));
             song.setTags(fetchTagsByIds(tagIds));
 
-            // 4. Calculate duration (HÀM calculateDuration SẼ TỰ XỬ LÝ URL)
-            // String fullSongPath = Paths.get("uploads").resolve(songFilePath)... // <-- XÓA DÒNG CŨ
-            song.setDuration(calculateDuration(songFilePath)); // <-- TRUYỀN THẲNG URL VÀO
+            // Calculate duration
+            song.setDuration(calculateDuration(songFilePath));
 
-            // 5. Save and return DTO
+            // Save
             Song savedSong = songRepository.save(song);
             return toDTO(savedSong);
 
@@ -370,18 +344,18 @@ public class SongService {
         Song song = songRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Song not found: " + id));
 
-        // 1. Cập nhật thông tin cơ bản (Partial Update - check null)
+        // Cập nhật thông tin
         if (updateDTO.getTitle() != null) song.setTitle(updateDTO.getTitle());
         if (updateDTO.getDescription() != null) song.setDescription(updateDTO.getDescription());
         if (updateDTO.getImageUrl() != null) song.setImageUrl(updateDTO.getImageUrl());
 
-        // 2. Cập nhật File & Duration (Nếu file thay đổi thì tính lại duration)
+        // Cập nhật File & Duration
         if (updateDTO.getFilePath() != null && !updateDTO.getFilePath().equals(song.getFilePath())) {
             song.setFilePath(updateDTO.getFilePath());
             song.setDuration(calculateDuration(updateDTO.getFilePath()));
         }
 
-        // 3. Cập nhật Quan hệ (Sử dụng Helper)
+        // Cập nhật Quan hệ
         if (updateDTO.getArtistIds() != null) {
             song.setArtists(fetchArtistsByIds(updateDTO.getArtistIds()));
         }
@@ -407,148 +381,58 @@ public class SongService {
 
         }
 
-    
+        // LIKE/UNLIKE
 
-        // =================================================================
-
-        // 5. LIKE/UNLIKE OPERATIONS
-
-        // =================================================================
-
-    
 
         @Transactional
 
         public void likeSong(Long songId) {
-
-            // 1. Get current user and song
-
             String email = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername();
-
             User currentUser = userRepository.findByEmail(email)
-
                     .orElseThrow(() -> new RuntimeException("Current user not found"));
-
             Song song = songRepository.findById(songId)
-
                     .orElseThrow(() -> new NoSuchElementException("Song not found: " + songId));
 
-    
-
-            // 2. Check if already liked
-
+            // 2. Check xem like chưa
             SongLikeId likeId = new SongLikeId(currentUser.getId(), song.getId());
-
             if (songLikeRepository.existsById(likeId)) {
-
-                // Optional: throw an exception or just return
-
-                return; // Already liked, do nothing
-
+                return;
             }
 
-    
-
-            // 3. Create new like and update count
-
+            // tạo like mới và up số like
             SongLike songLike = new SongLike(currentUser, song);
-
             songLikeRepository.save(songLike);
-
-    
-
             song.setLikeCount(song.getLikeCount() + 1);
-
             songRepository.save(song);
-
         }
 
-    
-
         @Transactional
-
         public void unlikeSong(Long songId) {
-
-            // 1. Get current user and song
-
             String email = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername();
-
             User currentUser = userRepository.findByEmail(email)
-
                     .orElseThrow(() -> new RuntimeException("Current user not found"));
-
             Song song = songRepository.findById(songId)
-
                     .orElseThrow(() -> new NoSuchElementException("Song not found: " + songId));
 
-    
-
-            // 2. Find the like
-
             SongLikeId likeId = new SongLikeId(currentUser.getId(), song.getId());
-
             SongLike songLike = songLikeRepository.findById(likeId)
-
                     .orElse(null); // Find the like to delete
 
-    
-
-            // 3. If like exists, delete it and update count
-
+            //If like exists, delete it and update count
             if (songLike != null) {
-
                 songLikeRepository.delete(songLike);
-
-    
-
-                        song.setLikeCount(Math.max(0, song.getLikeCount() - 1)); // Avoid negative counts
-
-    
-
+                        song.setLikeCount(Math.max(0, song.getLikeCount() - 1));
                         songRepository.save(song);
-
-    
-
                     }
-
-    
-
                 }
-
-    
-
-                
-
-    
 
                 @Transactional
-
-    
-
                 public void incrementListenCount(Long songId) {
-
-    
-
                     Song song = songRepository.findById(songId)
-
-    
-
                             .orElseThrow(() -> new NoSuchElementException("Song not found: " + songId));
-
-    
-
                     song.setListenCount(song.getListenCount() + 1);
-
-    
-
                     songRepository.save(song);
-
-    
-
                 }
-
-    
-
                 }
 
     
