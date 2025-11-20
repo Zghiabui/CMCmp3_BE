@@ -501,14 +501,54 @@ public class SongService {
 
     
 
-                song.setLikeCount(Math.max(0, song.getLikeCount() - 1)); // Avoid negative counts
+                        song.setLikeCount(Math.max(0, song.getLikeCount() - 1)); // Avoid negative counts
 
-                songRepository.save(song);
+    
 
-            }
+                        songRepository.save(song);
 
-        }
+    
 
-    }
+                    }
+
+    
+
+                }
+
+    
+
+                
+
+    
+
+                @Transactional
+
+    
+
+                public void incrementListenCount(Long songId) {
+
+    
+
+                    Song song = songRepository.findById(songId)
+
+    
+
+                            .orElseThrow(() -> new NoSuchElementException("Song not found: " + songId));
+
+    
+
+                    song.setListenCount(song.getListenCount() + 1);
+
+    
+
+                    songRepository.save(song);
+
+    
+
+                }
+
+    
+
+                }
 
     
