@@ -61,6 +61,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/charts/realtime").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/songs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/playlists/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/artists/**").permitAll()
                         .requestMatchers("/api/search").permitAll()
                         .requestMatchers("/images/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
