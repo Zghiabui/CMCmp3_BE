@@ -11,5 +11,4 @@ public class CmCmp3Application {
 	public static void main(String[] args) {
 		SpringApplication.run(CmCmp3Application.class, args);
 	}
-
 }

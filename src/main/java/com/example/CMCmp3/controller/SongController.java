@@ -135,4 +135,10 @@ public class SongController {
         songService.unlikeSong(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PutMapping("/{id}/listen")
+    public ResponseEntity<Void> incrementListenCount(@PathVariable Long id) {
+        songService.incrementListenCount(id);
+        return ResponseEntity.ok().build();
+    }
 }
