@@ -44,7 +44,7 @@ public class ArtistService {
     @Transactional(readOnly = true)
     public List<SongDTO> getSongsByArtistId(Long id) {
         // Lưu ý: Trong SongRepository cần có method findAllByArtistsId(Long artistId)
-        return songRepository.findAllByArtistsId(id)
+        return songRepository.findAllByArtistsIdAndStatus(id, com.example.CMCmp3.entity.SongStatus.APPROVED)
                 .stream()
                 .map(this::toSongDTO)
                 .collect(Collectors.toList());
