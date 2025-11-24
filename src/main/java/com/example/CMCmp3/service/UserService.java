@@ -54,7 +54,8 @@ public class UserService {
                 Set.of(u.getRole().name()), // Dùng Set<String> khớp với DTO
                 u.getCreatedAt(),
                 u.getUpdatedAt(),
-                u.getLastLoginTime()
+                u.getLastLoginTime(),
+                u.getProvider().name()
         );
     }
 
@@ -163,6 +164,11 @@ public class UserService {
     @Transactional
     public void changePassword(Authentication authentication, ChangePasswordDTO dto) {
         User user = getCurrentUser(authentication);
+
+        // KIỂM TRA QUAN TRỌNG: Chặn đổi mật khẩu cho tài khoản không phải là 'LOCAL'
+        if (user.getProvider() != AuthProvider.LOCAL) {
+            throw new RuntimeException("Không thể đổi mật khẩu cho tài khoản đã liên kết với " + user.getProvider() + ".");
+        }
 
         // Verify old password
         if (!passwordEncoder.matches(dto.getOldPassword(), user.getPassword())) {

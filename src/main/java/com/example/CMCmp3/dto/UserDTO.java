@@ -21,4 +21,5 @@ public class UserDTO {
     private java.time.LocalDateTime createdAt;
     private java.time.LocalDateTime updatedAt;
     private java.time.LocalDateTime lastLoginTime;
+    private String provider;
 }
