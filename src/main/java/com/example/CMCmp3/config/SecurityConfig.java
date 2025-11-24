@@ -57,6 +57,7 @@ public class SecurityConfig {
                 )
 
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/api/auth/**", "/login/oauth2/**", "/oauth2/redirect/**").permitAll()
                         .requestMatchers("/api/charts/realtime").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/songs/**").permitAll()
