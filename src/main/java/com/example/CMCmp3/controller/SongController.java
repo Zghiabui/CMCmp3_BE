@@ -2,6 +2,7 @@ package com.example.CMCmp3.controller;
 
 import com.example.CMCmp3.dto.CreateSongDTO;
 import com.example.CMCmp3.dto.SongDTO;
+import com.example.CMCmp3.dto.AddLyricsDTO;
 import com.example.CMCmp3.service.SongService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -94,6 +95,12 @@ public class SongController {
         return ResponseEntity.status(HttpStatus.CREATED).body(newSong);
     }
 
+    @PostMapping("/{id}/lyrics")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<SongDTO> addLyrics(@PathVariable Long id, @RequestBody AddLyricsDTO dto) {
+        return ResponseEntity.ok(songService.addLyricsToSong(id, dto));
+    }
+
     @PutMapping(value = "/uploaded/{id}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<SongDTO> updateUploadedSong(
@@ -142,3 +149,4 @@ public class SongController {
         return ResponseEntity.ok().build();
     }
 }
+

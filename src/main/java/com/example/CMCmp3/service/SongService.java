@@ -124,6 +124,15 @@ public class SongService {
         dto.setDescription(s.getDescription());
         dto.setCreatedAt(s.getCreatedAt());
 
+        if (s.getLyrics() != null) {
+            List<LyricLineDTO> lyricLineDTOS = s.getLyrics().stream()
+                    .map(l -> new LyricLineDTO(l.getTime(), l.getText()))
+                    .collect(Collectors.toList());
+            dto.setLyrics(lyricLineDTOS);
+        } else {
+            dto.setLyrics(Collections.emptyList());
+        }
+
         if (s.getArtists() != null && !s.getArtists().isEmpty()) {
             dto.setArtistName(s.getArtists().stream()
                     .map(Artist::getName)
@@ -387,6 +396,24 @@ public class SongService {
         }
         if (updateDTO.getTagIds() != null) {
             song.setTags(fetchTagsByIds(updateDTO.getTagIds()));
+        }
+
+        Song updatedSong = songRepository.save(song);
+        return toDTO(updatedSong);
+    }
+
+    @Transactional
+    public SongDTO addLyricsToSong(Long songId, AddLyricsDTO addLyricsDTO) {
+        Song song = songRepository.findById(songId)
+                .orElseThrow(() -> new NoSuchElementException("Song not found: " + songId));
+
+        song.getLyrics().clear();
+
+        if (addLyricsDTO.getLyrics() != null) {
+            List<LyricLine> newLyrics = addLyricsDTO.getLyrics().stream()
+                    .map(dto -> new LyricLine(dto.getTime(), dto.getText()))
+                    .collect(Collectors.toList());
+            song.getLyrics().addAll(newLyrics);
         }
 
         Song updatedSong = songRepository.save(song);
