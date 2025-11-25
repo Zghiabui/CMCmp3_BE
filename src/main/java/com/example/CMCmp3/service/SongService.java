@@ -37,6 +37,7 @@ public class SongService {
     private final UserRepository userRepository;
     private final SongLikeRepository songLikeRepository;
     private final FirebaseStorageService firebaseStorageService;
+    private final NotificationService notificationService;
 
     private User getCurrentAuthenticatedUser() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -50,7 +51,7 @@ public class SongService {
                 .orElseThrow(() -> new RuntimeException("Current user not found in database"));
     }
 
-    // 1. HELPERS: FETCHING & CALCULATION (Logic phụ trợ)
+    // 1. HELPERS(Logic phụ trợ)
 
     private Set<Artist> fetchArtistsByIds(Set<Long> artistIds) {
         if (artistIds == null || artistIds.isEmpty()) {
@@ -83,7 +84,6 @@ public class SongService {
                 }
                 fileToRead = tempFile;
             } else {
-                // Nếu là đường dẫn local
                 fileToRead = new File(filePath);
             }
 
@@ -103,22 +103,15 @@ public class SongService {
         }
     }
 
-    // =================================================================
     // 2. HELPERS: MAPPERS (Chuyển đổi dữ liệu)
-    // =================================================================
 
-    /**
-     * Convert: Entity -> DTO (Response)
-     */
     public SongDTO toDTO(Song s) {
         SongDTO dto = new SongDTO();
         dto.setId(s.getId());
         dto.setTitle(s.getTitle());
         dto.setDuration(s.getDuration());
-        dto.setFilePath(s.getFilePath()); // Đây sẽ là URL Firebase của file MP3
-        dto.setImageUrl(s.getImageUrl()); // Đây sẽ là URL Firebase của file ảnh
-        // ... (Giữ nguyên phần còn lại của hàm)
-
+        dto.setFilePath(s.getFilePath());
+        dto.setImageUrl(s.getImageUrl());
         dto.setListenCount(s.getListenCount());
         dto.setLikeCount(s.getLikeCount());
         dto.setDescription(s.getDescription());
@@ -175,40 +168,27 @@ public class SongService {
         return dto;
     }
 
-    /**
-     * Convert: CreateDTO -> Entity (Dùng khi tạo mới)
-     */
     private Song convertToEntity(CreateSongDTO dto) {
         Song song = new Song();
         song.setTitle(dto.getTitle());
         song.setFilePath(dto.getFilePath());
         song.setImageUrl(dto.getImageUrl());
         song.setDescription(dto.getDescription());
-
-        // Giá trị mặc định
         song.setListenCount(0L);
         song.setLikeCount(0L);
-
-        // Gọi Helper để lấy Entity từ ID
         song.setArtists(fetchArtistsByIds(dto.getArtistIds()));
         song.setTags(fetchTagsByIds(dto.getTagIds()));
-
-        // Gọi Helper tính Duration
         song.setDuration(calculateDuration(dto.getFilePath()));
 
         return song;
     }
 
-    // =================================================================
     // 3. READ OPERATIONS (Đọc dữ liệu)
-    // =================================================================
 
     @Transactional(readOnly = true)
     public Page<SongDTO> getAllSongs(Pageable pageable) {
         return songRepository.findAll(pageable).map(this::toDTO);
     }
-
-
 
     @Transactional(readOnly = true)
     public SongDTO getById(Long id) {
@@ -318,11 +298,11 @@ public class SongService {
                 song.setStatus(SongStatus.PENDING);
             }
 
-            // 4. Calculate duration (HÀM calculateDuration SẼ TỰ XỬ LÝ URL)
+            // Calculate duration (HÀM calculateDuration SẼ TỰ XỬ LÝ URL)
             // String fullSongPath = Paths.get("uploads").resolve(songFilePath)... // <-- XÓA DÒNG CŨ
             song.setDuration(calculateDuration(songFilePath)); // <-- TRUYỀN THẲNG URL VÀO
 
-            // 5. Save and return DTO
+            // Save and return DTO
             Song savedSong = songRepository.save(song);
             return toDTO(savedSong);
 
@@ -442,225 +422,101 @@ public class SongService {
     }
 
         @Transactional
-
         public void deleteSong(Long id) {
-
             if (!songRepository.existsById(id)) {
-
                 throw new NoSuchElementException("Song not found: " + id);
-
             }
-
             songRepository.deleteById(id);
-
         }
 
-    
-
-        // =================================================================
-
         // 5. LIKE/UNLIKE OPERATIONS
-
-        // =================================================================
-
-    
 
         @Transactional
 
         public void likeSong(Long songId) {
 
-            // 1. Get current user and song
-
+            // Get current user and song
             String email = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername();
-
             User currentUser = userRepository.findByEmail(email)
-
                     .orElseThrow(() -> new RuntimeException("Current user not found"));
 
             Song song = songRepository.findById(songId)
-
                     .orElseThrow(() -> new NoSuchElementException("Song not found: " + songId));
 
-    
-
-            // 2. Check if already liked
-
+            // Check if already liked
             SongLikeId likeId = new SongLikeId(currentUser.getId(), song.getId());
 
             if (songLikeRepository.existsById(likeId)) {
-
-                // Optional: throw an exception or just return
-
-                return; // Already liked, do nothing
-
+                return;
             }
 
-    
-
-            // 3. Create new like and update count
+            // Create new like and update count
 
             SongLike songLike = new SongLike(currentUser, song);
-
             songLikeRepository.save(songLike);
-
-    
-
             song.setLikeCount(song.getLikeCount() + 1);
-
             songRepository.save(song);
 
+            if (song.getUploader() != null) {
+                notificationService.createAndSendNotification(
+                        currentUser,                   // Sender
+                        song.getUploader(),            // Recipient
+                        NotificationType.LIKE_SONG,    // Type
+                        currentUser.getDisplayName() + " đã thích bài hát: " + song.getTitle(), // Message
+                        song.getId()                   // Reference ID
+                );
+            }
         }
 
-    
-
         @Transactional
-
         public void unlikeSong(Long songId) {
-
-            // 1. Get current user and song
 
             String email = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername();
 
             User currentUser = userRepository.findByEmail(email)
-
                     .orElseThrow(() -> new RuntimeException("Current user not found"));
-
             Song song = songRepository.findById(songId)
-
                     .orElseThrow(() -> new NoSuchElementException("Song not found: " + songId));
-
-    
-
-            // 2. Find the like
-
+            // Find the like
             SongLikeId likeId = new SongLikeId(currentUser.getId(), song.getId());
 
             SongLike songLike = songLikeRepository.findById(likeId)
-
                     .orElse(null); // Find the like to delete
 
-    
-
-            // 3. If like exists, delete it and update count
+            // If like exists, delete it and update count
 
             if (songLike != null) {
-
                 songLikeRepository.delete(songLike);
-
-    
-
                         song.setLikeCount(Math.max(0, song.getLikeCount() - 1)); // Avoid negative counts
-
-    
-
                         songRepository.save(song);
-
-    
-
                     }
+        }
 
-    
+        @Transactional
+        public void incrementListenCount(Long songId) {
+            Song song = songRepository.findById(songId)
+                .orElseThrow(() -> new NoSuchElementException("Song not found: " + songId));
 
-                }
+            song.setListenCount(song.getListenCount() + 1);
+            songRepository.save(song);
+        }
 
-    
+        @Transactional(readOnly = true)
+        public Page<SongDTO> getSongsByStatus(SongStatus status, Pageable pageable) {
 
-                
+        return songRepository.findAllByStatus(status, pageable).map(this::toDTO);
+        }
 
-    
+        @Transactional
+        public SongDTO changeSongStatus(Long songId, SongStatus newStatus) {
+        Song song = songRepository.findById(songId)
+                .orElseThrow(() -> new NoSuchElementException("Song not found: " + songId));
 
-                @Transactional
+        song.setStatus(newStatus);
+        Song updatedSong = songRepository.save(song);
 
-    
-
-                    public void incrementListenCount(Long songId) {
-
-    
-
-                
-
-    
-
-                        Song song = songRepository.findById(songId)
-
-    
-
-                                .orElseThrow(() -> new NoSuchElementException("Song not found: " + songId));
-
-    
-
-                
-
-    
-
-                        song.setListenCount(song.getListenCount() + 1);
-
-    
-
-                        songRepository.save(song);
-
-    
-
-                    }
-
-    
-
-                
-
-    
-
-                    @Transactional(readOnly = true)
-
-    
-
-                    public Page<SongDTO> getSongsByStatus(SongStatus status, Pageable pageable) {
-
-    
-
-                        return songRepository.findAllByStatus(status, pageable).map(this::toDTO);
-
-    
-
-                    }
-
-    
-
-                
-
-    
-
-                    @Transactional
-
-    
-
-                    public SongDTO changeSongStatus(Long songId, SongStatus newStatus) {
-
-    
-
-                        Song song = songRepository.findById(songId)
-
-    
-
-                                .orElseThrow(() -> new NoSuchElementException("Song not found: " + songId));
-
-    
-
-                        song.setStatus(newStatus);
-
-    
-
-                        Song updatedSong = songRepository.save(song);
-
-    
-
-                        return toDTO(updatedSong);
-
-    
-
-                    }
-
-    
-
-                }
+        return toDTO(updatedSong);
+        }
+}
 
     
