@@ -339,7 +339,8 @@ public class SongService {
                                       Set<Long> artistIds,
                                       Set<Long> tagIds,
                                       MultipartFile newSongFile,
-                                      MultipartFile newImageFile) {
+                                      MultipartFile newImageFile,
+                                      String status) {
 
         Song song = songRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Song not found: " + id));
@@ -363,6 +364,16 @@ public class SongService {
         }
         if (tagIds != null) {
             song.setTags(fetchTagsByIds(tagIds));
+        }
+        // New logic to update status
+        if (status != null && !status.isBlank()) {
+            try {
+                SongStatus newStatus = SongStatus.valueOf(status.toUpperCase());
+                song.setStatus(newStatus);
+            } catch (IllegalArgumentException e) {
+                // Optional: handle invalid status string, e.g., throw an exception or log a warning
+                // For now, we'll just ignore invalid status values
+            }
         }
 
         try {
