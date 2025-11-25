@@ -36,15 +36,15 @@ public interface PlaylistRepository extends JpaRepository<Playlist, Long> {
     // --- TOP CHARTS (Modified with JOIN FETCH) ---
 
     // Top nghe nhiều
-    @Query("SELECT DISTINCT p FROM Playlist p LEFT JOIN FETCH p.owner LEFT JOIN FETCH p.playlistSongs ps LEFT JOIN FETCH ps.song ORDER BY p.playCount DESC")
+    @Query("SELECT DISTINCT p FROM Playlist p LEFT JOIN FETCH p.owner LEFT JOIN FETCH p.playlistSongs ps LEFT JOIN FETCH ps.song WHERE p.privacy = 'PUBLIC' ORDER BY p.playCount DESC")
     List<Playlist> findTopByPlayCount(Pageable pageable);
 
     // Top mới tạo
-    @Query("SELECT DISTINCT p FROM Playlist p LEFT JOIN FETCH p.owner LEFT JOIN FETCH p.playlistSongs ps LEFT JOIN FETCH ps.song ORDER BY p.createdAt DESC")
+    @Query("SELECT DISTINCT p FROM Playlist p LEFT JOIN FETCH p.owner LEFT JOIN FETCH p.playlistSongs ps LEFT JOIN FETCH ps.song WHERE p.privacy = 'PUBLIC' ORDER BY p.createdAt DESC")
     List<Playlist> findTopByCreatedAt(Pageable pageable);
 
     // Top yêu thích
-    @Query("SELECT DISTINCT p FROM Playlist p LEFT JOIN FETCH p.owner LEFT JOIN FETCH p.playlistSongs ps LEFT JOIN FETCH ps.song ORDER BY p.likeCount DESC")
+    @Query("SELECT DISTINCT p FROM Playlist p LEFT JOIN FETCH p.owner LEFT JOIN FETCH p.playlistSongs ps LEFT JOIN FETCH ps.song WHERE p.privacy = 'PUBLIC' ORDER BY p.likeCount DESC")
     List<Playlist> findTopByLikeCount(Pageable pageable);
     @Query("SELECT pl.playlist FROM PlaylistLike pl WHERE pl.user.id = :userId")
     List<Playlist> findLikedPlaylistsByUserId(@Param("userId") Long userId);

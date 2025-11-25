@@ -110,9 +110,10 @@ public class SongController {
             @RequestParam(value = "artistIds", required = false) Set<Long> artistIds,
             @RequestParam(value = "tagIds", required = false) Set<Long> tagIds,
             @RequestParam(value = "songFile", required = false) MultipartFile songFile,
-            @RequestParam(value = "imageFile", required = false) MultipartFile imageFile
+            @RequestParam(value = "imageFile", required = false) MultipartFile imageFile,
+            @RequestParam(value = "status", required = false) String status
     ) {
-        SongDTO updatedSong = songService.updateUploadedSong(id, title, description, artistIds, tagIds, songFile, imageFile);
+        SongDTO updatedSong = songService.updateUploadedSong(id, title, description, artistIds, tagIds, songFile, imageFile, status);
         return ResponseEntity.ok(updatedSong);
     }
 

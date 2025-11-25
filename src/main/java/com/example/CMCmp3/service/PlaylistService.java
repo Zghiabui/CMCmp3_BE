@@ -143,13 +143,56 @@ public class PlaylistService {
 
     @Transactional(readOnly = true)
     public List<PlaylistDTO> getAll() {
-        return playlistRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
+        User currentUser = null;
+        try {
+            currentUser = getCurrentAuthenticatedUser();
+        } catch (RuntimeException e) {
+            // User is not authenticated, currentUser remains null
+        }
+
+        List<Playlist> playlists = playlistRepository.findAll();
+        final User finalCurrentUser = currentUser;
+
+        return playlists.stream()
+                .filter(p -> {
+                    if (p.getPrivacy() == PlaylistPrivacy.PUBLIC) {
+                        return true;
+                    }
+                    if (finalCurrentUser != null) {
+                        // Admins can see all playlists
+                        if (finalCurrentUser.getRole() == Role.ADMIN) {
+                            return true;
+                        }
+                        // Users can see their own private playlists
+                        if (p.getOwner() != null && p.getOwner().getId().equals(finalCurrentUser.getId())) {
+                            return true;
+                        }
+                    }
+                    return false;
+                })
+                .map(this::toDTO)
+                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public PlaylistDTO getById(Long id) {
         Playlist p = playlistRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Playlist not found"));
+
+        // Privacy Check
+        if (p.getPrivacy() == PlaylistPrivacy.PRIVATE) {
+            try {
+                User currentUser = getCurrentAuthenticatedUser();
+                // Allow access if the user is the owner or an admin
+                if (!p.getOwner().getId().equals(currentUser.getId()) && !currentUser.getRole().equals(Role.ADMIN)) {
+                    throw new AccessDeniedException("You are not authorized to access this playlist.");
+                }
+            } catch (RuntimeException e) {
+                // Throws if user is not authenticated
+                throw new AccessDeniedException("You must be logged in to access this private playlist.");
+            }
+        }
+
         return toDTO(p);
     }
 
@@ -166,7 +209,17 @@ public class PlaylistService {
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new NoSuchElementException("Playlist not found with ID: " + playlistId));
 
-        // TODO: Add authorization check for private playlists
+        // Authorization check for private playlists
+        if (playlist.getPrivacy() == PlaylistPrivacy.PRIVATE) {
+            try {
+                User currentUser = getCurrentAuthenticatedUser();
+                if (!playlist.getOwner().getId().equals(currentUser.getId()) && !currentUser.getRole().equals(Role.ADMIN)) {
+                    throw new AccessDeniedException("You are not authorized to access songs in this playlist.");
+                }
+            } catch (RuntimeException e) {
+                throw new AccessDeniedException("You must be logged in to access songs in this private playlist.");
+            }
+        }
 
         return playlist.getPlaylistSongs().stream()
                 .map(playlistSong -> songService.toDTO(playlistSong.getSong()))
@@ -211,7 +264,11 @@ public class PlaylistService {
         Optional.ofNullable(dto.getDescription())
                 .filter(description -> !description.trim().isEmpty())
                 .ifPresent(playlist::setDescription);
-        playlist.setPrivacy(PlaylistPrivacy.valueOf(dto.getPrivacy().toUpperCase()));
+
+        // Update privacy only if provided in DTO
+        if (dto.getPrivacy() != null && !dto.getPrivacy().trim().isEmpty()) {
+            playlist.setPrivacy(PlaylistPrivacy.valueOf(dto.getPrivacy().toUpperCase()));
+        }
 
         // Handle artistIds update
         if (dto.getArtistIds() != null && !dto.getArtistIds().isEmpty()) {
@@ -334,7 +391,13 @@ public class PlaylistService {
         p.setPlayCount(0L);
         p.setLikeCount(0L);
         p.setCommentCount(0L);
-        p.setPrivacy(PlaylistPrivacy.valueOf(dto.getPrivacy().toUpperCase())); // Set privacy from DTO
+
+        // Set privacy with a default of PRIVATE if not provided
+        if (dto.getPrivacy() == null || dto.getPrivacy().trim().isEmpty()) {
+            p.setPrivacy(PlaylistPrivacy.PRIVATE);
+        } else {
+            p.setPrivacy(PlaylistPrivacy.valueOf(dto.getPrivacy().toUpperCase()));
+        }
 
         return toDTO(playlistRepository.save(p));
     }
