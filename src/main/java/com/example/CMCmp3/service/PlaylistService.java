@@ -6,12 +6,7 @@ import com.example.CMCmp3.dto.PlaylistDTO;
 import com.example.CMCmp3.dto.SongDTO;
 import com.example.CMCmp3.dto.UpdatePlaylistDTO; // Import UpdatePlaylistDTO
 import com.example.CMCmp3.dto.UpdatePlaylistSongsDTO;
-import com.example.CMCmp3.entity.Playlist;
-import com.example.CMCmp3.entity.User;
-import com.example.CMCmp3.entity.Song;
-import com.example.CMCmp3.entity.Artist;
-import com.example.CMCmp3.entity.PlaylistSong;
-import com.example.CMCmp3.entity.PlaylistSongId;
+import com.example.CMCmp3.entity.*;
 import com.example.CMCmp3.repository.PlaylistRepository;
 import com.example.CMCmp3.repository.UserRepository;
 import com.example.CMCmp3.repository.SongRepository;
@@ -25,8 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import org.springframework.security.access.AccessDeniedException;
-import com.example.CMCmp3.entity.Role;
-import com.example.CMCmp3.entity.PlaylistPrivacy;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -37,8 +30,7 @@ import java.util.HashSet;
 import java.util.stream.Collectors;
 import java.util.Optional;
 import com.example.CMCmp3.repository.PlaylistLikeRepository;
-import com.example.CMCmp3.entity.PlaylistLike;
-import com.example.CMCmp3.entity.PlaylistLikeId;
+
 import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
@@ -51,6 +43,7 @@ public class PlaylistService {
     private final FirebaseStorageService firebaseStorageService;
     private final ArtistRepository artistRepository;
     private final PlaylistLikeRepository playlistLikeRepository;
+    private final NotificationService notificationService;
 
     private User getCurrentAuthenticatedUser() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -82,6 +75,16 @@ public class PlaylistService {
             PlaylistLike newLike = new PlaylistLike(likeId, currentUser, playlist, LocalDateTime.now());
             playlistLikeRepository.save(newLike);
             playlist.setLikeCount(playlist.getLikeCount() + 1);
+
+            if (playlist.getOwner() != null) {
+                notificationService.createAndSendNotification(
+                        currentUser,                   // Sender
+                        playlist.getOwner(),            // Recipient
+                        NotificationType.LIKE_PLAYLIST,    // Type
+                        currentUser.getDisplayName() + " đã thích playlist: " + playlist.getTitle(), // Message
+                        playlist.getId()
+                );
+            }
         }
         playlistRepository.save(playlist);
     }
