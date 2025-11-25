@@ -3,11 +3,8 @@ package com.example.CMCmp3.service;
 import com.example.CMCmp3.dto.CreateSongCommentDTO;
 import com.example.CMCmp3.dto.SongCommentDTO;
 import com.example.CMCmp3.dto.UpdateSongCommentDTO;
-import com.example.CMCmp3.entity.Role;
-import com.example.CMCmp3.entity.Song;
-import com.example.CMCmp3.entity.SongComment;
+import com.example.CMCmp3.entity.*;
 
-import com.example.CMCmp3.entity.User;
 import com.example.CMCmp3.repository.SongCommentRepository;
 import com.example.CMCmp3.repository.SongRepository;
 import com.example.CMCmp3.repository.UserRepository;
@@ -28,6 +25,8 @@ public class SongCommentService {
     private final SongRepository songRepository;
     private final UserRepository userRepository;
     private final SongCommentRepository songCommentRepository;
+    private final NotificationService notificationService;
+
 
     private User getCurrentAuthenticatedUser() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -67,6 +66,15 @@ public class SongCommentService {
         songRepository.save(song);
 
         SongComment savedComment = songCommentRepository.save(newComment);
+        if (song.getUploader() != null) {
+            notificationService.createAndSendNotification(
+                    currentUser,                   // Sender
+                    song.getUploader(),            // Recipient
+                    NotificationType.COMMENT_SONG,    // Type
+                    currentUser.getDisplayName() + " đã bình luận bài hát: " + song.getTitle(), // Message
+                    song.getId()
+            );
+        }
         return toDTO(savedComment);
     }
 
