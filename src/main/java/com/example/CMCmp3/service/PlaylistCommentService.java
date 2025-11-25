@@ -3,10 +3,7 @@ package com.example.CMCmp3.service;
 import com.example.CMCmp3.dto.CreatePlaylistCommentDTO;
 import com.example.CMCmp3.dto.PlaylistCommentDTO;
 import com.example.CMCmp3.dto.UpdatePlaylistCommentDTO;
-import com.example.CMCmp3.entity.Playlist;
-import com.example.CMCmp3.entity.PlaylistComment;
-import com.example.CMCmp3.entity.Role;
-import com.example.CMCmp3.entity.User;
+import com.example.CMCmp3.entity.*;
 import com.example.CMCmp3.repository.PlaylistCommentRepository;
 import com.example.CMCmp3.repository.PlaylistRepository;
 import com.example.CMCmp3.repository.UserRepository;
@@ -27,6 +24,8 @@ public class PlaylistCommentService {
     private final PlaylistRepository playlistRepository;
     private final UserRepository userRepository;
     private final PlaylistCommentRepository playlistCommentRepository;
+    private final NotificationService notificationService;
+
 
     private User getCurrentAuthenticatedUser() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -64,6 +63,16 @@ public class PlaylistCommentService {
         long currentCommentCount = playlist.getCommentCount() != null ? playlist.getCommentCount() : 0L;
         playlist.setCommentCount(currentCommentCount + 1);
         playlistRepository.save(playlist);
+
+        if (playlist.getOwner() != null) {
+            notificationService.createAndSendNotification(
+                    currentUser,                   // Sender
+                    playlist.getOwner(),            // Recipient
+                    NotificationType.COMMENT_PLAYLIST,    // Type
+                    currentUser.getDisplayName() + " đã bình luận playlist: " + playlist.getTitle(), // Message
+                    playlist.getId()
+            );
+        }
 
         PlaylistComment savedComment = playlistCommentRepository.save(newComment);
         return toDTO(savedComment);
