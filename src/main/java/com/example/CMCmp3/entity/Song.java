@@ -43,6 +43,11 @@ public class Song {
     @Column(columnDefinition = "bigint default 0")
     private Long commentCount = 0L;
 
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private SongStatus status = SongStatus.APPROVED;
+
     @Column(columnDefinition = "TEXT")
     private String description;
 

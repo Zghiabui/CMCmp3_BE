@@ -212,8 +212,8 @@ public class SongService {
 
     @Transactional(readOnly = true)
     public SongDTO getById(Long id) {
-        Song song = songRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Song not found: " + id));
+        Song song = songRepository.findApprovedById(id)
+                .orElseThrow(() -> new NoSuchElementException("Approved song not found: " + id));
         return toDTO(song);
     }
 
@@ -272,7 +272,10 @@ public class SongService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("User not found: " + userId));
         List<Song> songs = songRepository.findByUploader(user);
-        return songs.stream().map(this::toDTO).collect(Collectors.toList());
+        return songs.stream()
+                .filter(song -> song.getStatus() == SongStatus.APPROVED)
+                .map(this::toDTO)
+                .collect(Collectors.toList());
     }
 
     // 4. WRITE OPERATIONS (Ghi dữ liệu)
@@ -307,6 +310,13 @@ public class SongService {
             song.setLikeCount(0L);
             song.setArtists(fetchArtistsByIds(artistIds));
             song.setTags(fetchTagsByIds(tagIds));
+
+            // Set status based on user role
+            if (currentUser.getRole() == Role.ADMIN) {
+                song.setStatus(SongStatus.APPROVED);
+            } else {
+                song.setStatus(SongStatus.PENDING);
+            }
 
             // 4. Calculate duration (HÀM calculateDuration SẼ TỰ XỬ LÝ URL)
             // String fullSongPath = Paths.get("uploads").resolve(songFilePath)... // <-- XÓA DÒNG CŨ
@@ -552,27 +562,91 @@ public class SongService {
 
     
 
-                public void incrementListenCount(Long songId) {
+                    public void incrementListenCount(Long songId) {
 
     
 
-                    Song song = songRepository.findById(songId)
+                
 
     
 
-                            .orElseThrow(() -> new NoSuchElementException("Song not found: " + songId));
+                        Song song = songRepository.findById(songId)
 
     
 
-                    song.setListenCount(song.getListenCount() + 1);
+                                .orElseThrow(() -> new NoSuchElementException("Song not found: " + songId));
 
     
 
-                    songRepository.save(song);
+                
 
     
 
-                }
+                        song.setListenCount(song.getListenCount() + 1);
+
+    
+
+                        songRepository.save(song);
+
+    
+
+                    }
+
+    
+
+                
+
+    
+
+                    @Transactional(readOnly = true)
+
+    
+
+                    public Page<SongDTO> getSongsByStatus(SongStatus status, Pageable pageable) {
+
+    
+
+                        return songRepository.findAllByStatus(status, pageable).map(this::toDTO);
+
+    
+
+                    }
+
+    
+
+                
+
+    
+
+                    @Transactional
+
+    
+
+                    public SongDTO changeSongStatus(Long songId, SongStatus newStatus) {
+
+    
+
+                        Song song = songRepository.findById(songId)
+
+    
+
+                                .orElseThrow(() -> new NoSuchElementException("Song not found: " + songId));
+
+    
+
+                        song.setStatus(newStatus);
+
+    
+
+                        Song updatedSong = songRepository.save(song);
+
+    
+
+                        return toDTO(updatedSong);
+
+    
+
+                    }
 
     
 
