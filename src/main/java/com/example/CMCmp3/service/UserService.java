@@ -32,6 +32,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -126,6 +127,10 @@ public class UserService {
         user.setLastLoginTime(java.time.LocalDateTime.now());
         userRepository.save(user);
         return user;
+    }
+
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(safeLower(email));
     }
 
     public UserDTO getMe(Authentication authentication) {
