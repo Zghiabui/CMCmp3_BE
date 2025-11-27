@@ -22,4 +22,5 @@ public class UserDTO {
     private java.time.LocalDateTime updatedAt;
     private java.time.LocalDateTime lastLoginTime;
     private String provider;
+    private boolean isTwoFactorEnabled;
 }

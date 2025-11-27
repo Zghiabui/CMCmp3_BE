@@ -20,7 +20,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -37,6 +38,8 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class UserService {
+
+    private static final Logger log = LoggerFactory.getLogger(UserService.class);
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -56,7 +59,8 @@ public class UserService {
                 u.getCreatedAt(),
                 u.getUpdatedAt(),
                 u.getLastLoginTime(),
-                u.getProvider().name()
+                u.getProvider().name(),
+                u.isTwoFactorEnabled()
         );
     }
 
@@ -136,6 +140,18 @@ public class UserService {
     public UserDTO getMe(Authentication authentication) {
         User user = getCurrentUser(authentication);
         return convertToDTO(user); // Dùng hàm convert chuẩn
+    }
+
+    @Transactional
+    public UserDTO toggleTwoFactorAuthentication(Authentication authentication) {
+        User user = getCurrentUser(authentication);
+        boolean initial2FAStatus = user.isTwoFactorEnabled();
+        log.info("User {} (ID: {}) initial 2FA status: {}", user.getEmail(), user.getId(), initial2FAStatus);
+
+        user.setTwoFactorEnabled(!initial2FAStatus);
+        User updatedUser = userRepository.save(user);
+        log.info("User {} (ID: {}) 2FA status after save: {}", updatedUser.getEmail(), updatedUser.getId(), updatedUser.isTwoFactorEnabled());
+        return convertToDTO(updatedUser);
     }
 
     public UserDTO updateMe(Authentication authentication, UpdateUserDTO userDTO) {

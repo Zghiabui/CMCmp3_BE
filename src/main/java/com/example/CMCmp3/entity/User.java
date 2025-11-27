@@ -71,6 +71,9 @@ public class User implements UserDetails {
 
     private String providerId;
 
+    @Column(nullable = false, columnDefinition = "TINYINT(1)")
+    private boolean isTwoFactorEnabled = false;
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;

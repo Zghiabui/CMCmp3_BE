@@ -65,10 +65,23 @@ public class AuthController {
     public ResponseEntity<?> login(@Valid @RequestBody LoginDTO request) {
         try {
             User user = userService.authenticate(request.getEmail(), request.getPassword());
-            otpService.generateAndSendOtpForLogin(user.getEmail());
-            return ResponseEntity.ok(Map.of(
-                    "message", "Xác thực thành công, vui lòng nhập mã OTP"
-            ));
+
+            if (user.isTwoFactorEnabled()) {
+                // 2FA is enabled, proceed with OTP flow
+                otpService.generateAndSendOtpForLogin(user.getEmail());
+                return ResponseEntity.ok(Map.of(
+                        "message", "Xác thực thành công, vui lòng nhập mã OTP"
+                ));
+            } else {
+                // 2FA is not enabled, log in directly
+                String token = jwtService.generateToken(user);
+                UserDTO userDTO = userService.convertToDTO(user);
+                return ResponseEntity.ok(Map.of(
+                        "message", "Đăng nhập thành công",
+                        "user", userDTO,
+                        "token", token
+                ));
+            }
         } catch (RuntimeException e) {
             return ResponseEntity.status(401).body(Map.of("error", e.getMessage()));
         }
