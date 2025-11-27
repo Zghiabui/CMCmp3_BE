@@ -2,11 +2,7 @@ package com.example.CMCmp3.service;
 
 import com.example.CMCmp3.dto.*;
 import com.example.CMCmp3.entity.*;
-import com.example.CMCmp3.repository.ArtistRepository;
-import com.example.CMCmp3.repository.SongLikeRepository;
-import com.example.CMCmp3.repository.SongRepository;
-import com.example.CMCmp3.repository.TagRepository;
-import com.example.CMCmp3.repository.UserRepository;
+import com.example.CMCmp3.repository.*;
 import com.mpatric.mp3agic.Mp3File;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -38,6 +34,7 @@ public class SongService {
     private final SongLikeRepository songLikeRepository;
     private final FirebaseStorageService firebaseStorageService;
     private final NotificationService notificationService;
+    private final SongListenLogRepository songListenLogRepository;
 
     private User getCurrentAuthenticatedUser() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -49,6 +46,14 @@ public class SongService {
         }
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Current user not found in database"));
+    }
+
+    private Optional<User> getOptionalAuthenticatedUser() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (principal instanceof UserDetails userDetails) {
+            return userRepository.findByEmail(userDetails.getUsername());
+        }
+        return Optional.empty();
     }
 
     // 1. HELPERS(Logic phụ trợ)
@@ -497,8 +502,14 @@ public class SongService {
             Song song = songRepository.findById(songId)
                 .orElseThrow(() -> new NoSuchElementException("Song not found: " + songId));
 
+            // 1. Tăng tổng lượt nghe trên bài hát
             song.setListenCount(song.getListenCount() + 1);
             songRepository.save(song);
+
+            // 2. Ghi log chi tiết lượt nghe này
+            User user = getOptionalAuthenticatedUser().orElse(null);
+            SongListenLog logEntry = new SongListenLog(song, user, java.time.LocalDateTime.now());
+            songListenLogRepository.save(logEntry);
         }
 
         @Transactional(readOnly = true)

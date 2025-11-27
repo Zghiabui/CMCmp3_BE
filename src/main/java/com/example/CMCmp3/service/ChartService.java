@@ -1,138 +1,140 @@
 package com.example.CMCmp3.service;
 
-import jakarta.annotation.PostConstruct;
-import org.springframework.scheduling.annotation.Scheduled;
+import com.example.CMCmp3.dto.ArtistDTO;
+import com.example.CMCmp3.dto.SongDTO;
+import com.example.CMCmp3.repository.SongListenLogRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class ChartService {
 
-    // ====== Cấu hình "mỗi 2 giờ" ======
-    private static final int STEP_MINUTES  = 120;   // bước thời gian: 2 giờ
-    private static final int WINDOW_POINTS = 12;    // 24h / 2h = 12 điểm
-    // ===================================
+    private final SongService songService;
+    private final SongListenLogRepository songListenLogRepository;
 
-    private final Deque<Point> buffer = new ArrayDeque<>();
+    // Cấu hình cho biểu đồ đường
+    private static final int STEP_MINUTES = 120; // 2 giờ
+    private static final int WINDOW_POINTS = 12; // 12 điểm trong 24 giờ
     private static final DateTimeFormatter HHmm = DateTimeFormatter.ofPattern("HH:mm");
-    private final Random rnd = new Random();
 
-    record Point(LocalDateTime ts, int vn, int usuk, int kpop) {}
-
-    @PostConstruct
-    void init() {
-        // Căn mốc 2 giờ chẵn gần nhất (…, 00:00, 02:00, 04:00, …)
-        LocalDateTime now = LocalDateTime.now();
-        int alignHour = (now.getHour() / 2) * 2; // 0,2,4,...
-        LocalDateTime aligned = now.withHour(alignHour).withMinute(0).withSecond(0).withNano(0);
-
-        // Khởi tạo 24h gần nhất (12 điểm cách nhau 2h)
-        LocalDateTime t = aligned.minusMinutes((long) STEP_MINUTES * (WINDOW_POINTS - 1));
-        int vn = 35, usuk = 21, kpop = 17;
-        for (int i = 0; i < WINDOW_POINTS; i++) {
-            int[] p = next(vn, usuk, kpop);
-            buffer.addLast(new Point(t, p[0], p[1], p[2]));
-            t = t.plusMinutes(STEP_MINUTES);
-            vn = p[0]; usuk = p[1]; kpop = p[2];
-        }
-    }
-
-    // Chạy đúng mỗi 2 giờ (phút 00, giây 00): 00:00, 02:00, 04:00, ...
-    @Scheduled(cron = "0 0 */2 * * *")
-    void tick() {
-        Point last = buffer.peekLast();
-        if (last == null) return;
-
-        // Căn thời điểm hiện tại về mốc 2h chẵn
-        LocalDateTime now = LocalDateTime.now();
-        int alignHour = (now.getHour() / 2) * 2;
-        LocalDateTime alignedNow = now.withHour(alignHour).withMinute(0).withSecond(0).withNano(0);
-
-        // Nếu buffer đã có điểm cho mốc này thì bỏ qua
-        if (last.ts.equals(alignedNow)) return;
-
-        int[] p = next(last.vn, last.usuk, last.kpop);
-        buffer.addLast(new Point(alignedNow, p[0], p[1], p[2]));
-        while (buffer.size() > WINDOW_POINTS) buffer.removeFirst();
-    }
-
-    private int[] next(int vn, int usuk, int kpop) {
-        // Random-walk nhẹ cho demo; sau này thay bằng dữ liệu thật
-        vn   = clamp(vn   + rnd.nextInt(5) - 2, 10, 60);
-        usuk = clamp(usuk + rnd.nextInt(5) - 2, 10, 60);
-        kpop = clamp(kpop + rnd.nextInt(5) - 2, 10, 60);
-
-        double sum = vn + usuk + kpop;
-        if (sum <= 0) sum = 1; // tránh chia 0
-
-        // Chuẩn hoá về % và đảm bảo tổng 100
-        int vnPct   = (int) Math.round(vn   / sum * 100.0);
-        int usukPct = (int) Math.round(usuk / sum * 100.0);
-        int kpopPct = Math.max(0, 100 - vnPct - usukPct);
-
-        return new int[]{vnPct, usukPct, kpopPct};
-    }
-    private int clamp(int v, int lo, int hi){ return Math.max(lo, Math.min(hi, v)); }
 
     public Map<String, Object> getRealtime() {
-        List<String> timeline = new ArrayList<>(WINDOW_POINTS);
-        List<Integer> vnVals   = new ArrayList<>(WINDOW_POINTS);
-        List<Integer> usukVals = new ArrayList<>(WINDOW_POINTS);
-        List<Integer> kpopVals = new ArrayList<>(WINDOW_POINTS);
+        // === PHẦN 1: LẤY DỮ LIỆU CƠ BẢN VÀ CHUẨN BỊ ===
 
-        for (Point p : buffer) {
-            timeline.add(p.ts.format(HHmm)); // 00:00, 02:00, 04:00, ...
-            vnVals.add(p.vn);
-            usukVals.add(p.usuk);
-            kpopVals.add(p.kpop);
+        // 1. Lấy danh sách 100 bài hát hàng đầu để xác định top 3 hiện tại
+        List<SongDTO> top100Songs = songService.getTopSongs(100);
+        List<SongDTO> currentTop3Songs = top100Songs.stream().limit(3).collect(Collectors.toList());
+
+        // Căn chỉnh thời gian về mốc 2 giờ chẵn gần nhất (e.g., 15:30 -> 14:00)
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime alignedNow = now.withMinute(0).withSecond(0).withNano(0);
+        if (now.getHour() % 2 != 0) {
+            alignedNow = alignedNow.minusHours(1);
         }
 
-        // Giá trị mới nhất
-        int lastVN = vnVals.get(vnVals.size()-1);
-        int lastUS = usukVals.get(usukVals.size()-1);
-        int lastKP = kpopVals.get(kpopVals.size()-1);
+        // === PHẦN 2: TÍNH TOÁN DỮ LIỆU CHO BIỂU ĐỒ ĐƯỜNG (lineChartData) ===
+        List<String> timeline = new ArrayList<>(WINDOW_POINTS);
+        List<Map<String, Object>> lineChartData = new ArrayList<>(WINDOW_POINTS); // Cấu trúc mới
 
-        // Metadata cho từng series (để FE map đúng đường line)
-        Map<String, Object> seriesMeta = Map.of(
-                "vn",   Map.of("title", "Âm Thầm Bên Em",                 "artists", "Sơn Tùng",          "cover", "/assets/SonTung.jpg"),
-                "usuk", Map.of("title", "Khi Phải Quên Đi",               "artists", "Phan Mạnh Quỳnh",   "cover", "/assets/PhanManhQuynh.jpg"),
-                "kpop", Map.of("title", "Anh Đã Không Biết Cách Yêu Em",  "artists", "Quang Đăng Trần",   "cover", "/assets/QuangDangTran.jpg")
-        );
+        for (int i = 0; i < WINDOW_POINTS; i++) {
+            LocalDateTime endTime = alignedNow.minusMinutes((long) (WINDOW_POINTS - 1 - i) * STEP_MINUTES);
+            LocalDateTime startTime = endTime.minusMinutes(STEP_MINUTES);
 
-        // Top 3: sort theo phần trăm ↓ rồi gán rank, giữ lại code để FE biết thuộc series nào
-        List<Map<String, Object>> items = new ArrayList<>(List.of(
-                new HashMap<>(Map.of("code","vn",   "percent", lastVN)),
-                new HashMap<>(Map.of("code","usuk", "percent", lastUS)),
-                new HashMap<>(Map.of("code","kpop", "percent", lastKP))
-        ));
-        items.sort((a, b) -> Integer.compare((Integer) b.get("percent"), (Integer) a.get("percent")));
+            timeline.add(endTime.format(HHmm));
 
-        List<Map<String, Object>> top3 = new ArrayList<>();
-        for (int i = 0; i < items.size(); i++) {
-            String code = (String) items.get(i).get("code");
-            int percent = (Integer) items.get(i).get("percent");
-            Map<String, Object> meta = (Map<String, Object>) seriesMeta.get(code);
+            Map<String, Object> dataPoint = new HashMap<>();
+            dataPoint.put("time", endTime.format(HHmm)); // Thêm mốc thời gian vào mỗi dataPoint
 
+            // Lấy lượt nghe thô cho từng bài hát trong top 3 trong khoảng thời gian này
+            Map<Long, Long> rawListensInInterval = new HashMap<>();
+            long totalListensInInterval = 0L;
+            for (SongDTO song : currentTop3Songs) {
+                long listens = songListenLogRepository.countListensForSongBetween(song.getId(), startTime, endTime);
+                rawListensInInterval.put(song.getId(), listens);
+                totalListensInInterval += listens;
+            }
+
+            // Chuyển đổi sang phần trăm và thêm vào dataPoint
+            for (SongDTO song : currentTop3Songs) {
+                double percentage = 0.0;
+                if (totalListensInInterval > 0) {
+                    percentage = (double) rawListensInInterval.get(song.getId()) / totalListensInInterval * 100.0;
+                }
+                dataPoint.put("song_" + song.getId(), (double) Math.round(percentage)); // Làm tròn thành số nguyên
+            }
+            lineChartData.add(dataPoint);
+        }
+
+
+        // === PHẦN 3: TẠO METADATA CHO BIỂU ĐỒ ĐƯỜNG (lineChartMetadata) ===
+        Map<String, Map<String, Object>> lineChartMetadata = new HashMap<>(); // Cấu trúc mới
+        for (SongDTO song : currentTop3Songs) {
+            Map<String, Object> songMeta = new HashMap<>();
+            songMeta.put("id", song.getId());
+            songMeta.put("title", song.getTitle());
+            songMeta.put("artists", song.getArtists().stream().map(ArtistDTO::getName).collect(Collectors.joining(", ")));
+            songMeta.put("cover", song.getImageUrl());
+            lineChartMetadata.put("song_" + song.getId(), songMeta);
+        }
+
+
+        // === PHẦN 4: LẤY DỮ LIỆU BẢNG XẾP HẠNG CHUNG (tái sử dụng) ===
+
+        List<Map<String, Object>> top3Formatted = new ArrayList<>();
+        long totalTop3OverallListens = currentTop3Songs.stream()
+                                                    .mapToLong(SongDTO::getListenCount)
+                                                    .sum();
+
+        for (int i = 0; i < currentTop3Songs.size(); i++) {
+            SongDTO song = currentTop3Songs.get(i);
             Map<String, Object> row = new HashMap<>();
             row.put("rank", i + 1);
-            row.put("code", code);            // vn/usuk/kpop
-            row.put("percent", percent);
-            row.put("title",  meta.get("title"));
-            row.put("artists",meta.get("artists"));
-            row.put("cover",  meta.get("cover")); // tuỳ bạn có file hay không
-            top3.add(row);
+            row.put("id", song.getId());
+            row.put("title", song.getTitle());
+            String artists = song.getArtists().stream().map(ArtistDTO::getName).collect(Collectors.joining(", "));
+            row.put("artists", artists);
+            row.put("cover", song.getImageUrl());
+            row.put("listenCount", song.getListenCount());
+            double percentage = 0.0;
+            if (totalTop3OverallListens > 0) {
+                percentage = (double) song.getListenCount() / totalTop3OverallListens * 100.0;
+            }
+            row.put("percent", (double) Math.round(percentage)); // Làm tròn thành số nguyên
+            top3Formatted.add(row);
         }
+
+        List<Map<String, Object>> chartItems = new ArrayList<>();
+        for (int i = 0; i < top100Songs.size(); i++) {
+            SongDTO song = top100Songs.get(i);
+            Map<String, Object> item = new HashMap<>();
+            item.put("rank", i + 1);
+            item.put("id", song.getId());
+            item.put("title", song.getTitle());
+            String artists = song.getArtists().stream().map(ArtistDTO::getName).collect(Collectors.joining(", "));
+            item.put("artists", artists);
+            item.put("cover", song.getImageUrl());
+            item.put("duration", song.getDuration());
+            item.put("listenCount", song.getListenCount());
+            chartItems.add(item);
+        }
+
+        // === PHẦN 5: KẾT HỢP VÀ TRẢ VỀ ===
 
         return Map.of(
                 "timeline", timeline,
-                "vn", vnVals,
-                "usuk", usukVals,
-                "kpop", kpopVals,
-                "seriesMeta", seriesMeta,     // FE có thể dùng để đặt nhãn/tooltip theo tên bài
-                "top3", top3,                 // đã sort + có code để map đúng line
+                "lineChartData", lineChartData,
+                "lineChartMetadata", lineChartMetadata,
+                "top3", top3Formatted,
+                "items", chartItems,
                 "lastUpdated", System.currentTimeMillis()
         );
     }
