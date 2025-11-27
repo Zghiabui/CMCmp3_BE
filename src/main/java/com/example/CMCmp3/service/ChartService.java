@@ -31,8 +31,7 @@ public class ChartService {
         // === PHẦN 1: LẤY DỮ LIỆU CƠ BẢN VÀ CHUẨN BỊ ===
 
         // 1. Lấy danh sách 100 bài hát hàng đầu để xác định top 3 hiện tại
-        List<SongDTO> top100Songs = songService.getTopSongs(100);
-        List<SongDTO> currentTop3Songs = top100Songs.stream().limit(3).collect(Collectors.toList());
+        List<SongDTO> currentTop3Songs = songService.getTopSongs(3);
 
         // Căn chỉnh thời gian về mốc 2 giờ chẵn gần nhất (e.g., 15:30 -> 14:00)
         LocalDateTime now = LocalDateTime.now();
@@ -113,8 +112,8 @@ public class ChartService {
         }
 
         List<Map<String, Object>> chartItems = new ArrayList<>();
-        for (int i = 0; i < top100Songs.size(); i++) {
-            SongDTO song = top100Songs.get(i);
+        for (int i = 0; i < currentTop3Songs.size(); i++) {
+            SongDTO song = currentTop3Songs.get(i);
             Map<String, Object> item = new HashMap<>();
             item.put("rank", i + 1);
             item.put("id", song.getId());
