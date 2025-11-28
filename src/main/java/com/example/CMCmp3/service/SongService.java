@@ -1,4 +1,5 @@
 package com.example.CMCmp3.service;
+
 import com.example.CMCmp3.dto.*;
 import com.example.CMCmp3.entity.*;
 import com.example.CMCmp3.repository.*;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -36,6 +38,7 @@ public class SongService {
     private final SongLikeRepository songLikeRepository;
     private final FirebaseStorageService firebaseStorageService;
     private final NotificationService notificationService;
+    private final PlaylistSongRepository playlistSongRepository;
     private final SongListenLogRepository songListenLogRepository;
 
     private User getCurrentAuthenticatedUser() {
@@ -450,10 +453,11 @@ public class SongService {
 
         @Transactional
         public void deleteSong(Long id) {
-            if (!songRepository.existsById(id)) {
-                throw new NoSuchElementException("Song not found: " + id);
-            }
-            songRepository.deleteById(id);
+            Song song = songRepository.findById(id)
+                    .orElseThrow(() -> new NoSuchElementException("Song not found: " + id));
+
+            playlistSongRepository.deleteBySongId(id);
+            songRepository.delete(song);
         }
 
         // 5. LIKE/UNLIKE OPERATIONS
