@@ -60,20 +60,6 @@ public class PlaylistCommentService {
                 .content(commentDTO.getContent())
                 .build();
 
-        long currentCommentCount = playlist.getCommentCount() != null ? playlist.getCommentCount() : 0L;
-        playlist.setCommentCount(currentCommentCount + 1);
-        playlistRepository.save(playlist);
-
-        if (playlist.getOwner() != null) {
-            notificationService.createAndSendNotification(
-                    currentUser,                   // Sender
-                    playlist.getOwner(),            // Recipient
-                    NotificationType.COMMENT_PLAYLIST,    // Type
-                    currentUser.getDisplayName() + " đã bình luận playlist: " + playlist.getTitle(), // Message
-                    playlist.getId()
-            );
-        }
-
         PlaylistComment savedComment = playlistCommentRepository.save(newComment);
         return toDTO(savedComment);
     }
@@ -83,7 +69,7 @@ public class PlaylistCommentService {
         if (!playlistRepository.existsById(playlistId)) {
             throw new NoSuchElementException("Playlist not found with ID: " + playlistId);
         }
-        return playlistCommentRepository.findByPlaylistId(playlistId, pageable).map(this::toDTO);
+        return playlistCommentRepository.findByPlaylistIdAndStatus(playlistId, CommentStatus.APPROVED, pageable).map(this::toDTO);
     }
 
     @Transactional
@@ -119,5 +105,74 @@ public class PlaylistCommentService {
         }
 
         playlistCommentRepository.delete(comment);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PlaylistCommentDTO> getPendingComments(Pageable pageable) {
+        return playlistCommentRepository.findByStatus(CommentStatus.PENDING, pageable).map(this::toDTO);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PlaylistCommentDTO> getPendingCommentsByPlaylistId(Long playlistId, Pageable pageable) {
+        User currentUser = getCurrentAuthenticatedUser();
+        Playlist playlist = playlistRepository.findById(playlistId)
+                .orElseThrow(() -> new NoSuchElementException("Playlist not found with ID: " + playlistId));
+
+        if (!playlist.getOwner().getId().equals(currentUser.getId()) && currentUser.getRole() != Role.ADMIN) {
+            throw new SecurityException("User is not authorized to view pending comments for this playlist");
+        }
+        return playlistCommentRepository.findByPlaylistIdAndStatus(playlistId, CommentStatus.PENDING, pageable).map(this::toDTO);
+    }
+
+    @Transactional
+    public void approveComment(Long commentId) {
+        User currentUser = getCurrentAuthenticatedUser();
+        PlaylistComment comment = playlistCommentRepository.findById(commentId)
+                .orElseThrow(() -> new NoSuchElementException("Comment not found with ID: " + commentId));
+
+        Playlist playlist = comment.getPlaylist();
+        // Check for ownership or admin role
+        boolean isOwner = playlist.getOwner() != null && playlist.getOwner().getId().equals(currentUser.getId());
+        boolean isAdmin = currentUser.getRole() == Role.ADMIN;
+
+        if (!isOwner && !isAdmin) {
+            throw new SecurityException("User is not authorized to approve this comment");
+        }
+
+        comment.setStatus(CommentStatus.APPROVED);
+
+        long currentCommentCount = playlist.getCommentCount() != null ? playlist.getCommentCount() : 0L;
+        playlist.setCommentCount(currentCommentCount + 1);
+        playlistRepository.save(playlist);
+
+        if (playlist.getOwner() != null) {
+            notificationService.createAndSendNotification(
+                    comment.getUser(),                   // Sender
+                    playlist.getOwner(),            // Recipient
+                    NotificationType.COMMENT_PLAYLIST,    // Type
+                    comment.getUser().getDisplayName() + " đã bình luận playlist: " + playlist.getTitle(), // Message
+                    playlist.getId()
+            );
+        }
+        playlistCommentRepository.save(comment);
+    }
+
+    @Transactional
+    public void rejectComment(Long commentId) {
+        User currentUser = getCurrentAuthenticatedUser();
+        PlaylistComment comment = playlistCommentRepository.findById(commentId)
+                .orElseThrow(() -> new NoSuchElementException("Comment not found with ID: " + commentId));
+
+        Playlist playlist = comment.getPlaylist();
+        // Check for ownership or admin role
+        boolean isOwner = playlist.getOwner() != null && playlist.getOwner().getId().equals(currentUser.getId());
+        boolean isAdmin = currentUser.getRole() == Role.ADMIN;
+
+        if (!isOwner && !isAdmin) {
+            throw new SecurityException("User is not authorized to reject this comment");
+        }
+        
+        comment.setStatus(CommentStatus.REJECTED);
+        playlistCommentRepository.save(comment);
     }
 }

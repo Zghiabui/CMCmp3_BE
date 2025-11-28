@@ -31,4 +31,9 @@ public class PlaylistComment {
 
     @CreationTimestamp
     private LocalDateTime createdAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private CommentStatus status = CommentStatus.PENDING;
 }
