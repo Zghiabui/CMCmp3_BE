@@ -314,17 +314,55 @@ public class SongController {
 
 
 
-    @PutMapping("/{id}/listen")
+        @PutMapping("/{id}/listen")
 
-    public ResponseEntity<Void> incrementListenCount(@PathVariable Long id) {
 
-        songService.incrementListenCount(id);
 
-        return ResponseEntity.ok().build();
+        public ResponseEntity<Void> incrementListenCount(@PathVariable Long id) {
+
+
+
+            songService.incrementListenCount(id);
+
+
+
+            return ResponseEntity.ok().build();
+
+
+
+        }
+
+
+
+    
+
+
+
+        // TODO: Configure the base URL in a more flexible way
+
+
+
+        @GetMapping("/{id}/share")
+
+
+
+        public ResponseEntity<String> shareSong(@PathVariable Long id) {
+
+
+
+            String shareUrl = "http://localhost:3000/songs/" + id;
+
+
+
+            return ResponseEntity.ok(shareUrl);
+
+
+
+        }
+
+
 
     }
-
-}
 
 
 
