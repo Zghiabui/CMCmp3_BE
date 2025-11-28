@@ -80,7 +80,13 @@ public class SongController {
 
     @GetMapping("/{id}/download")
 
-    public ResponseEntity<Resource> downloadSong(@PathVariable Long id) throws IOException {
+
+
+        @PreAuthorize("isAuthenticated()")
+
+
+
+        public ResponseEntity<Resource> downloadSong(@PathVariable Long id) throws IOException {
 
         Map<String, Object> songData = songService.getSongResource(id);
 
