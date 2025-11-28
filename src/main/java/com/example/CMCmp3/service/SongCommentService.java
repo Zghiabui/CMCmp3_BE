@@ -43,6 +43,8 @@ public class SongCommentService {
     private SongCommentDTO toDTO(SongComment comment) {
         return new SongCommentDTO(
                 comment.getId(),
+                comment.getSong().getId(),
+                comment.getSong().getTitle(),
                 comment.getContent(),
                 comment.getCreatedAt(),
                 SongCommentDTO.fromUser(comment.getUser())

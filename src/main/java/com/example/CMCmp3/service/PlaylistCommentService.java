@@ -42,6 +42,8 @@ public class PlaylistCommentService {
     private PlaylistCommentDTO toDTO(PlaylistComment comment) {
         return new PlaylistCommentDTO(
                 comment.getId(),
+                comment.getPlaylist().getId(),
+                comment.getPlaylist().getTitle(),
                 comment.getContent(),
                 comment.getCreatedAt(),
                 PlaylistCommentDTO.fromUser(comment.getUser())
