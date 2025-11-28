@@ -3,6 +3,7 @@ package com.example.CMCmp3.service;
 import com.example.CMCmp3.dto.*;
 import com.example.CMCmp3.entity.*;
 import com.example.CMCmp3.repository.ArtistRepository;
+import com.example.CMCmp3.repository.PlaylistSongRepository;
 import com.example.CMCmp3.repository.SongLikeRepository;
 import com.example.CMCmp3.repository.SongRepository;
 import com.example.CMCmp3.repository.TagRepository;
@@ -38,6 +39,7 @@ public class SongService {
     private final SongLikeRepository songLikeRepository;
     private final FirebaseStorageService firebaseStorageService;
     private final NotificationService notificationService;
+    private final PlaylistSongRepository playlistSongRepository;
 
     private User getCurrentAuthenticatedUser() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -423,10 +425,11 @@ public class SongService {
 
         @Transactional
         public void deleteSong(Long id) {
-            if (!songRepository.existsById(id)) {
-                throw new NoSuchElementException("Song not found: " + id);
-            }
-            songRepository.deleteById(id);
+            Song song = songRepository.findById(id)
+                    .orElseThrow(() -> new NoSuchElementException("Song not found: " + id));
+
+            playlistSongRepository.deleteBySongId(id);
+            songRepository.delete(song);
         }
 
         // 5. LIKE/UNLIKE OPERATIONS
