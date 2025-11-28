@@ -1,10 +1,11 @@
 package com.example.CMCmp3.service;
-
 import com.example.CMCmp3.dto.*;
 import com.example.CMCmp3.entity.*;
 import com.example.CMCmp3.repository.*;
 import com.mpatric.mp3agic.Mp3File;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -15,10 +16,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -200,6 +202,26 @@ public class SongService {
         Song song = songRepository.findApprovedById(id)
                 .orElseThrow(() -> new NoSuchElementException("Approved song not found: " + id));
         return toDTO(song);
+    }
+    @Transactional(readOnly = true)
+    public Map<String, Object> getSongResource(Long id) throws MalformedURLException {
+        Song song = songRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Song not found: " + id));
+
+        Resource resource = new UrlResource(song.getFilePath());
+
+        if (!resource.exists() || !resource.isReadable()) {
+            throw new RuntimeException("Could not read file: " + song.getFilePath());
+        }
+
+        // Sanitize title to create a valid filename
+        String filename = song.getTitle().replaceAll("[^a-zA-Z0-9.-]", "_") + ".mp3";
+
+        Map<String, Object> songData = new HashMap<>();
+        songData.put("resource", resource);
+        songData.put("filename", filename);
+
+        return songData;
     }
 
     // --- TOP CHARTS (Sử dụng logic Repository trả về List Entity) ---
