@@ -123,9 +123,9 @@ public class SearchService {
             dto.setSongCount(0);
         }
 
-        // Lấy tên người tạo (User -> Owner)
+        // Lấy thông tin chủ sở hữu (User -> Owner)
         if (p.getOwner() != null) {
-            dto.setOwnerName(p.getOwner().getDisplayName());
+            dto.setOwner(new PlaylistDTO.OwnerDTO(p.getOwner().getId(), p.getOwner().getDisplayName()));
         }
 
         return dto;
