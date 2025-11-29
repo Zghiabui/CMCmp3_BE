@@ -43,6 +43,8 @@ public class SongCommentService {
     private SongCommentDTO toDTO(SongComment comment) {
         return new SongCommentDTO(
                 comment.getId(),
+                comment.getSong().getId(),
+                comment.getSong().getTitle(),
                 comment.getContent(),
                 comment.getCreatedAt(),
                 SongCommentDTO.fromUser(comment.getUser())
@@ -61,20 +63,7 @@ public class SongCommentService {
                 .content(commentDTO.getContent())
                 .build();
 
-        // Update comment count on the song
-        song.setCommentCount(song.getCommentCount() + 1);
-        songRepository.save(song);
-
         SongComment savedComment = songCommentRepository.save(newComment);
-        if (song.getUploader() != null) {
-            notificationService.createAndSendNotification(
-                    currentUser,                   // Sender
-                    song.getUploader(),            // Recipient
-                    NotificationType.COMMENT_SONG,    // Type
-                    currentUser.getDisplayName() + " đã bình luận bài hát: " + song.getTitle(), // Message
-                    song.getId()
-            );
-        }
         return toDTO(savedComment);
     }
 
@@ -83,7 +72,7 @@ public class SongCommentService {
         if (!songRepository.existsById(songId)) {
             throw new NoSuchElementException("Song not found with ID: " + songId);
         }
-        return songCommentRepository.findBySongId(songId, pageable).map(this::toDTO);
+        return songCommentRepository.findBySongIdAndStatus(songId, CommentStatus.APPROVED, pageable).map(this::toDTO);
     }
 
     @Transactional
@@ -118,5 +107,73 @@ public class SongCommentService {
         }
 
         songCommentRepository.delete(comment);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<SongCommentDTO> getPendingComments(Pageable pageable) {
+        return songCommentRepository.findByStatus(CommentStatus.PENDING, pageable).map(this::toDTO);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<SongCommentDTO> getPendingCommentsBySongId(Long songId, Pageable pageable) {
+        User currentUser = getCurrentAuthenticatedUser();
+        Song song = songRepository.findById(songId)
+                .orElseThrow(() -> new NoSuchElementException("Song not found with ID: " + songId));
+
+        if (!song.getUploader().getId().equals(currentUser.getId()) && currentUser.getRole() != Role.ADMIN) {
+            throw new SecurityException("User is not authorized to view pending comments for this song");
+        }
+        return songCommentRepository.findBySongIdAndStatus(songId, CommentStatus.PENDING, pageable).map(this::toDTO);
+    }
+
+    @Transactional
+    public void approveComment(Long commentId) {
+        User currentUser = getCurrentAuthenticatedUser();
+        SongComment comment = songCommentRepository.findById(commentId)
+                .orElseThrow(() -> new NoSuchElementException("Comment not found with ID: " + commentId));
+
+        Song song = comment.getSong();
+        // Check for ownership or admin role
+        boolean isOwner = song.getUploader() != null && song.getUploader().getId().equals(currentUser.getId());
+        boolean isAdmin = currentUser.getRole() == Role.ADMIN;
+
+        if (!isOwner && !isAdmin) {
+            throw new SecurityException("User is not authorized to approve this comment");
+        }
+
+        comment.setStatus(CommentStatus.APPROVED);
+
+        song.setCommentCount(song.getCommentCount() + 1);
+        songRepository.save(song);
+
+        if (song.getUploader() != null) {
+            notificationService.createAndSendNotification(
+                    comment.getUser(),                   // Sender
+                    song.getUploader(),            // Recipient
+                    NotificationType.COMMENT_SONG,    // Type
+                    comment.getUser().getDisplayName() + " đã bình luận bài hát: " + song.getTitle(), // Message
+                    song.getId()
+            );
+        }
+        songCommentRepository.save(comment);
+    }
+
+    @Transactional
+    public void rejectComment(Long commentId) {
+        User currentUser = getCurrentAuthenticatedUser();
+        SongComment comment = songCommentRepository.findById(commentId)
+                .orElseThrow(() -> new NoSuchElementException("Comment not found with ID: " + commentId));
+
+        Song song = comment.getSong();
+        // Check for ownership or admin role
+        boolean isOwner = song.getUploader() != null && song.getUploader().getId().equals(currentUser.getId());
+        boolean isAdmin = currentUser.getRole() == Role.ADMIN;
+
+        if (!isOwner && !isAdmin) {
+            throw new SecurityException("User is not authorized to reject this comment");
+        }
+
+        comment.setStatus(CommentStatus.REJECTED);
+        songCommentRepository.save(comment);
     }
 }
