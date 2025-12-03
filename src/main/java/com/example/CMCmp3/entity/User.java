@@ -92,6 +92,10 @@ public class User implements UserDetails {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<PlaylistLike> likedPlaylists = new HashSet<>();
 
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "artist_id", referencedColumnName = "id")
+    private Artist artist;
+
     // Spring Security
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
