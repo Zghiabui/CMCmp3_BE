@@ -10,9 +10,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-
 import org.springframework.http.HttpHeaders;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -20,14 +18,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-
-
 import java.io.IOException;
-
 import java.util.List;
-
 import java.util.Map;
-
 import java.util.Set;
 
 @RestController
@@ -51,32 +44,41 @@ public class SongController {
         return ResponseEntity.ok(songService.getById(id));
     }
 
+    /* ================== DOWNLOAD (cần đăng nhập) ================== */
 
     @GetMapping("/{id}/download")
-
-
     @PreAuthorize("isAuthenticated()")
-
-
     public ResponseEntity<Resource> downloadSong(@PathVariable Long id) throws IOException {
-
         Map<String, Object> songData = songService.getSongResource(id);
-
         Resource resource = (Resource) songData.get("resource");
-
         String filename = (String) songData.get("filename");
 
-
         return ResponseEntity.ok()
-
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
-
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
-
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + filename + "\"")
                 .body(resource);
-
     }
 
+    /* ================== STREAM (PUBLIC – dùng cho ZingChart, player, v.v.) ================== */
+
+    @GetMapping("/stream/{id}")
+    @PreAuthorize("permitAll()")   // hoặc bỏ hẳn @PreAuthorize nếu class không bị chặn chung
+    public ResponseEntity<Resource> streamSong(@PathVariable Long id) throws IOException {
+        Map<String, Object> songData = songService.getSongResource(id);
+        Resource resource = (Resource) songData.get("resource");
+        String filename   = (String) songData.get("filename");
+        String contentType = (String) songData.getOrDefault("contentType", "audio/mpeg");
+
+        return ResponseEntity.ok()
+                // cho phép trình duyệt/audio tag phát trực tiếp
+                .contentType(MediaType.parseMediaType(contentType))
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=\"" + filename + "\"")
+                .body(resource);
+    }
+
+    /* ================== TOP SONGS ================== */
 
     @GetMapping("/top")
     public ResponseEntity<List<SongDTO>> getTop(@RequestParam(defaultValue = "10") int limit) {
@@ -92,6 +94,8 @@ public class SongController {
     public ResponseEntity<List<SongDTO>> getTopLiked(@RequestParam(defaultValue = "10") int limit) {
         return ResponseEntity.ok(songService.getTopMostLiked(limit));
     }
+
+    /* ================== UPLOADED / FAVORITES ================== */
 
     @GetMapping("/uploaded")
     @PreAuthorize("isAuthenticated()")
@@ -111,6 +115,7 @@ public class SongController {
         return ResponseEntity.ok(songService.getFavoriteSongsForCurrentUser());
     }
 
+    /* ================== CRUD ================== */
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -128,7 +133,9 @@ public class SongController {
             @RequestParam(value = "artistIds", required = false) Set<Long> artistIds,
             @RequestParam(value = "tagIds", required = false) Set<Long> tagIds) {
 
-        SongDTO newSong = songService.createSongWithUpload(title, description, artistIds, tagIds, songFile, imageFile);
+        SongDTO newSong = songService.createSongWithUpload(
+                title, description, artistIds, tagIds, songFile, imageFile
+        );
         return ResponseEntity.status(HttpStatus.CREATED).body(newSong);
     }
 
@@ -150,13 +157,16 @@ public class SongController {
             @RequestParam(value = "imageFile", required = false) MultipartFile imageFile,
             @RequestParam(value = "status", required = false) String status
     ) {
-        SongDTO updatedSong = songService.updateUploadedSong(id, title, description, artistIds, tagIds, songFile, imageFile, status);
+        SongDTO updatedSong = songService.updateUploadedSong(
+                id, title, description, artistIds, tagIds, songFile, imageFile, status
+        );
         return ResponseEntity.ok(updatedSong);
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<SongDTO> update(@PathVariable Long id, @RequestBody CreateSongDTO dto) {
+    public ResponseEntity<SongDTO> update(@PathVariable Long id,
+                                          @RequestBody CreateSongDTO dto) {
         return ResponseEntity.ok(songService.updateSong(id, dto));
     }
 
@@ -166,6 +176,8 @@ public class SongController {
         songService.deleteSong(id);
         return ResponseEntity.noContent().build();
     }
+
+    /* ================== LIKE / UNLIKE ================== */
 
     @PostMapping("/{id}/like")
     @PreAuthorize("isAuthenticated()")
@@ -181,36 +193,19 @@ public class SongController {
         return ResponseEntity.noContent().build();
     }
 
+    /* ================== LISTEN COUNT ================== */
+
     @PutMapping("/{id}/listen")
-
-
     public ResponseEntity<Void> incrementListenCount(@PathVariable Long id) {
-
-
         songService.incrementListenCount(id);
-
-
         return ResponseEntity.ok().build();
-
-
     }
 
-
-    // TODO: Configure the base URL in a more flexible way
-
+    /* ================== SHARE LINK ================== */
 
     @GetMapping("/{id}/share")
-
-
     public ResponseEntity<String> shareSong(@PathVariable Long id) {
-
-
         String shareUrl = "http://localhost:3000/songs/" + id;
-
-
         return ResponseEntity.ok(shareUrl);
-
-
     }
 }
-

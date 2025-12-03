@@ -35,6 +35,7 @@ public class SecurityConfig {
     private final UserDetailsServiceImpl userDetailsServiceImpl;
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
 
+    // Swagger cho phép public
     @Bean
     @Order(1)
     public SecurityFilterChain swaggerSecurityFilterChain(HttpSecurity http) throws Exception {
@@ -55,17 +56,33 @@ public class SecurityConfig {
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
                 )
-
                 .authorizeHttpRequests(auth -> auth
+                        // WebSocket
                         .requestMatchers("/ws/**").permitAll()
-                        .requestMatchers("/api/auth/**", "/api/auth/verify-login-otp", "/login/oauth2/**", "/oauth2/redirect/**").permitAll()
+
+                        // Auth + OAuth2
+                        .requestMatchers("/api/auth/**",
+                                "/api/auth/verify-login-otp",
+                                "/login/oauth2/**",
+                                "/oauth2/redirect/**").permitAll()
+
+                        // ZingChart realtime
                         .requestMatchers("/api/charts/realtime").permitAll()
+
+                        // 👇 Cho stream nhạc public (audio/mp3 dùng GET /api/songs/stream/{id})
+                        .requestMatchers(HttpMethod.GET, "/api/songs/stream/**").permitAll()
+
+                        // 👇 Các API GET bài hát / playlist / nghệ sĩ cho phép xem không cần login
                         .requestMatchers(HttpMethod.GET, "/api/songs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/playlists/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/artists/**").permitAll()
+
+                        // Search, ảnh tĩnh, preflight
                         .requestMatchers("/api/search").permitAll()
                         .requestMatchers("/images/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                        // Còn lại phải đăng nhập
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(o -> o.successHandler(oAuth2AuthenticationSuccessHandler))
