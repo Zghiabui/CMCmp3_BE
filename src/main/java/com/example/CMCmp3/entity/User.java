@@ -58,7 +58,7 @@ public class User implements UserDetails {
     private Gender gender;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 20)
     private Role role;
 
     @Enumerated(EnumType.STRING)
