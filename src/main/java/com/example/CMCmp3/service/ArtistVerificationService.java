@@ -53,8 +53,8 @@ public class ArtistVerificationService {
         // Create a new Artist
         Artist artist = new Artist();
         artist.setName(request.getArtistName());
-        artist.setAvatarUrl(request.getImageUrl());
-        artist.setCreatedAt(LocalDateTime.now());
+        artist.setImageUrl(request.getImageUrl());
+        // createdAt will be set automatically by @CreationTimestamp
         Artist savedArtist = artistRepository.save(artist);
 
         // Update User

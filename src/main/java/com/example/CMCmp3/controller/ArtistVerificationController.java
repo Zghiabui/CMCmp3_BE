@@ -6,6 +6,7 @@ import com.example.CMCmp3.entity.ArtistVerificationRequest;
 import com.example.CMCmp3.entity.User;
 import com.example.CMCmp3.service.ArtistVerificationService;
 import com.example.CMCmp3.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -13,8 +14,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import javax.validation.Valid;
 
 @RestController
 @RequestMapping("/api/me/artist-verification-requests")
