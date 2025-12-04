@@ -206,6 +206,14 @@ public class SongService {
                 .orElseThrow(() -> new NoSuchElementException("Approved song not found: " + id));
         return toDTO(song);
     }
+
+    @Transactional(readOnly = true)
+    public SongDTO getSongByTitle(String title) {
+        Song song = songRepository.findFirstByTitleContainingIgnoreCase(title)
+                .orElseThrow(() -> new NoSuchElementException("Song not found with title: " + title));
+        return toDTO(song);
+    }
+
     @Transactional(readOnly = true)
     public Map<String, Object> getSongResource(Long id) throws MalformedURLException {
         Song song = songRepository.findById(id)
@@ -284,6 +292,48 @@ public class SongService {
         List<Song> songs = songRepository.findByUploader(user);
         return songs.stream()
                 .filter(song -> song.getStatus() == SongStatus.APPROVED)
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<SongDTO> findSongsByArtistName(String artistName) {
+        List<Song> songs = songRepository.findAllByArtistsNameContainingIgnoreCase(artistName);
+        return songs.stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<SongDTO> getSimilarSongs(Long songId, int limit) {
+        Song originalSong = songRepository.findById(songId)
+                .orElseThrow(() -> new NoSuchElementException("Song not found: " + songId));
+
+        Set<Long> artistIds = originalSong.getArtists().stream()
+                .map(Artist::getId)
+                .collect(Collectors.toSet());
+
+        Set<Long> tagIds = originalSong.getTags().stream()
+                .map(Tag::getId)
+                .collect(Collectors.toSet());
+
+        if (artistIds.isEmpty() && tagIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Song> similarSongs = songRepository.findSimilarSongs(songId, artistIds, tagIds, PageRequest.of(0, limit));
+
+        return similarSongs.stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<SongDTO> findSongsByMood(String mood, int limit) {
+        List<Song> songs = songRepository.findAllByTagsNameContainingIgnoreCase(mood);
+        Collections.shuffle(songs);
+        List<Song> limitedSongs = songs.stream().limit(limit).collect(Collectors.toList());
+        return limitedSongs.stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
     }

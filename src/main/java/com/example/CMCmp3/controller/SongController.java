@@ -44,6 +44,19 @@ public class SongController {
         return ResponseEntity.ok(songService.getById(id));
     }
 
+    @GetMapping("/details")
+    public ResponseEntity<SongDTO> getSongByTitle(@RequestParam String title) {
+        return ResponseEntity.ok(songService.getSongByTitle(title));
+    }
+
+    @GetMapping("/{id}/similar")
+    public ResponseEntity<List<SongDTO>> getSimilarSongs(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "10") int limit
+    ) {
+        return ResponseEntity.ok(songService.getSimilarSongs(id, limit));
+    }
+
     /* ================== DOWNLOAD (cần đăng nhập) ================== */
 
     @GetMapping("/{id}/download")
@@ -113,6 +126,11 @@ public class SongController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<SongDTO>> getFavoriteSongs() {
         return ResponseEntity.ok(songService.getFavoriteSongsForCurrentUser());
+    }
+
+    @GetMapping("/by-artist")
+    public ResponseEntity<List<SongDTO>> getSongsByArtistName(@RequestParam String artistName) {
+        return ResponseEntity.ok(songService.findSongsByArtistName(artistName));
     }
 
     /* ================== CRUD ================== */
