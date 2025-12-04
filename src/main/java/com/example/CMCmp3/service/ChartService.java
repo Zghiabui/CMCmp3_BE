@@ -127,7 +127,7 @@ public class ChartService {
             lineChartMetadata.put("song_" + song.getId(), songMeta);
         }
 
-        // === PHẦN 4: TOP3 BẢNG XẾP HẠNG + ITEMS ===
+        // === PHẦN 4: TOP 3 BẢNG XẾP HẠNG (HIỂN THỊ BÊN TRÁI) ===
 
         List<Map<String, Object>> top3Formatted = new ArrayList<>();
         long totalTop3OverallListens = currentTop3Songs.stream()
@@ -154,10 +154,11 @@ public class ChartService {
             top3Formatted.add(row);
         }
 
-        // items có thể giống top3 (hoặc sau này bạn lấy nhiều hơn)
+        // === PHẦN 4B: LẤY TOP 100 CHO DANH SÁCH CHI TIẾT (items) ===
+        List<SongDTO> top100Songs = songService.getTopSongs(100);
         List<Map<String, Object>> chartItems = new ArrayList<>();
-        for (int i = 0; i < currentTop3Songs.size(); i++) {
-            SongDTO song = currentTop3Songs.get(i);
+        for (int i = 0; i < top100Songs.size(); i++) {
+            SongDTO song = top100Songs.get(i);
             Map<String, Object> item = new HashMap<>();
             item.put("rank", i + 1);
             item.put("id", song.getId());
