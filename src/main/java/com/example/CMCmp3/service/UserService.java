@@ -72,6 +72,10 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
+    public User getUserFromAuthentication(Authentication authentication) {
+        return getCurrentUser(authentication);
+    }
+
     public User registerUser(RegisterDTO registerDTO) {
         final String email = safeLower(registerDTO.getEmail());
         final String displayName = safeTrim(registerDTO.getDisplayName());

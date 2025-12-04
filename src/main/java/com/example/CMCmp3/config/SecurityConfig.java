@@ -82,6 +82,13 @@ public class SecurityConfig {
                         .requestMatchers("/images/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
+                        // Artist Verification Endpoints
+                        .requestMatchers("/api/admin/artist-verification-requests/**").hasRole("ADMIN")
+                        .requestMatchers("/api/me/artist-verification-requests/**").hasAnyRole("USER", "ARTIST", "ADMIN")
+
+                        // File Upload Endpoint
+                        .requestMatchers(HttpMethod.POST, "/api/files/upload").authenticated()
+
                         // Còn lại phải đăng nhập
                         .anyRequest().authenticated()
                 )
