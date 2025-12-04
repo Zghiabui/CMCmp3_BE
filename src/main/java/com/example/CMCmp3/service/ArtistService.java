@@ -55,6 +55,16 @@ public class ArtistService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<ArtistDTO> findArtistsBySongTitle(String songTitle) {
+        List<Song> songs = songRepository.findByTitleContainingIgnoreCase(songTitle);
+        return songs.stream()
+                .flatMap(song -> song.getArtists().stream())
+                .distinct()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
 
 
     @Transactional

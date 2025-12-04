@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Repository
 public interface SongRepository extends JpaRepository<Song, Long> {
@@ -31,6 +32,17 @@ public interface SongRepository extends JpaRepository<Song, Long> {
             "(LOWER(s.title) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
             "LOWER(a.name) LIKE LOWER(CONCAT('%', :query, '%'))) AND s.status = com.example.CMCmp3.entity.SongStatus.APPROVED")
     List<Song> searchSongsByTitleOrArtist(@Param("query") String query);
+
+    List<Song> findByTitleContainingIgnoreCase(String title);
+
+    Optional<Song> findFirstByTitleContainingIgnoreCase(String title);
+
+    List<Song> findAllByArtistsNameContainingIgnoreCase(String artistName);
+
+    @Query("SELECT DISTINCT s FROM Song s JOIN s.artists a JOIN s.tags t WHERE s.id != :songId AND (a.id IN :artistIds OR t.id IN :tagIds)")
+    List<Song> findSimilarSongs(@Param("songId") Long songId, @Param("artistIds") Set<Long> artistIds, @Param("tagIds") Set<Long> tagIds, Pageable pageable);
+
+    List<Song> findAllByTagsNameContainingIgnoreCase(String tagName);
 
 
     List<Song> findAllByArtistsIdAndStatus(Long artistId, com.example.CMCmp3.entity.SongStatus status);
