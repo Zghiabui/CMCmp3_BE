@@ -329,6 +329,13 @@ public class SongService {
     }
 
     @Transactional(readOnly = true)
+    public List<SongDTO> getSimilarSongsByTitle(String title, int limit) {
+        return songRepository.findFirstByTitleContainingIgnoreCase(title)
+                .map(song -> getSimilarSongs(song.getId(), limit))
+                .orElse(Collections.emptyList());
+    }
+
+    @Transactional(readOnly = true)
     public List<SongDTO> findSongsByMood(String mood, int limit) {
         List<Song> songs = songRepository.findAllByTagsNameContainingIgnoreCase(mood);
         Collections.shuffle(songs);

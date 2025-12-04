@@ -57,6 +57,14 @@ public class SongController {
         return ResponseEntity.ok(songService.getSimilarSongs(id, limit));
     }
 
+    @GetMapping("/similar-by-title")
+    public ResponseEntity<List<SongDTO>> getSimilarSongsByTitle(
+            @RequestParam String title,
+            @RequestParam(defaultValue = "10") int limit
+    ) {
+        return ResponseEntity.ok(songService.getSimilarSongsByTitle(title, limit));
+    }
+
     /* ================== DOWNLOAD (cần đăng nhập) ================== */
 
     @GetMapping("/{id}/download")
