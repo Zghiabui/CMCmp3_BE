@@ -12,9 +12,16 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import com.example.CMCmp3.entity.User;
+
+import java.util.List;
 
 @Repository
+
+
 public interface SongRepository extends JpaRepository<Song, Long> {
+
+    List<Song> findByTitleContainingIgnoreCaseAndUploader(String title, User uploader);
 
     // Custom findAll to eagerly fetch artists and tags
     @Query(value = "SELECT DISTINCT s FROM Song s LEFT JOIN FETCH s.artists LEFT JOIN FETCH s.tags WHERE s.status = com.example.CMCmp3.entity.SongStatus.APPROVED",

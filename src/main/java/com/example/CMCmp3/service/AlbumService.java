@@ -225,6 +225,11 @@ public class AlbumService {
                 Song songToAdd = songRepository.findById(songId)
                         .orElseThrow(() -> new NoSuchElementException("Song not found with ID: " + songId));
 
+                // Check if the current user is the uploader of the song
+                if (!currentUser.getRole().equals(Role.ADMIN) && (songToAdd.getUploader() == null || !songToAdd.getUploader().getId().equals(currentUser.getId()))) {
+                    throw new AccessDeniedException("You are not authorized to add song with ID " + songId + " to this album because you are not its uploader.");
+                }
+
                 boolean alreadyExists = currentAlbumSongs.stream()
                         .anyMatch(as -> as.getSong().getId().equals(songId));
 
