@@ -12,13 +12,8 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import com.example.CMCmp3.entity.User;
-
-import java.util.List;
 
 @Repository
-
-
 public interface SongRepository extends JpaRepository<Song, Long> {
 
     List<Song> findByTitleContainingIgnoreCaseAndUploader(String title, User uploader);
