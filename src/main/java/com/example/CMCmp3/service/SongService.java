@@ -336,6 +336,14 @@ public class SongService {
     }
 
     @Transactional(readOnly = true)
+    public boolean isUploader(Long songId) {
+        User currentUser = getCurrentAuthenticatedUser();
+        Song song = songRepository.findById(songId)
+                .orElseThrow(() -> new NoSuchElementException("Song not found: " + songId));
+        return song.getUploader() != null && song.getUploader().getId().equals(currentUser.getId());
+    }
+
+    @Transactional(readOnly = true)
     public List<SongDTO> findSongsByMood(String mood, int limit) {
         List<Song> songs = songRepository.findAllByTagsNameContainingIgnoreCase(mood);
         Collections.shuffle(songs);

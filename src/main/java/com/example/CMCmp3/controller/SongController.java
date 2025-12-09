@@ -136,6 +136,12 @@ public class SongController {
         return ResponseEntity.ok(songService.getFavoriteSongsForCurrentUser());
     }
 
+    @GetMapping("/{id}/is-uploader")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Boolean> isUploader(@PathVariable Long id) {
+        return ResponseEntity.ok(songService.isUploader(id));
+    }
+
     @GetMapping("/by-artist")
     public ResponseEntity<List<SongDTO>> getSongsByArtistName(@RequestParam String artistName) {
         return ResponseEntity.ok(songService.findSongsByArtistName(artistName));
