@@ -120,8 +120,8 @@ public class SongController {
 
     @GetMapping("/uploaded")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<SongDTO>> getUploadedSongs() {
-        return ResponseEntity.ok(songService.getUploadedSongsForCurrentUser());
+    public ResponseEntity<List<SongDTO>> getUploadedSongs(@RequestParam(name = "q", required = false) String query) {
+        return ResponseEntity.ok(songService.getUploadedSongsForCurrentUser(query));
     }
 
     @GetMapping("/user/{userId}")

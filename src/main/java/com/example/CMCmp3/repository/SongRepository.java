@@ -16,6 +16,8 @@ import java.util.Set;
 @Repository
 public interface SongRepository extends JpaRepository<Song, Long> {
 
+    List<Song> findByTitleContainingIgnoreCaseAndUploader(String title, User uploader);
+
     // Custom findAll to eagerly fetch artists and tags
     @Query(value = "SELECT DISTINCT s FROM Song s LEFT JOIN FETCH s.artists LEFT JOIN FETCH s.tags WHERE s.status = com.example.CMCmp3.entity.SongStatus.APPROVED",
            countQuery = "SELECT COUNT(s) FROM Song s WHERE s.status = com.example.CMCmp3.entity.SongStatus.APPROVED")
@@ -60,6 +62,9 @@ public interface SongRepository extends JpaRepository<Song, Long> {
     List<Song> findTopByLikeCount(Pageable pageable);
 
     List<Song> findByUploader(User uploader);
+
+    @Query("SELECT s FROM Song s WHERE s.uploader.id = :userId AND LOWER(s.title) LIKE LOWER(CONCAT('%', :query, '%'))")
+    List<Song> findByUploaderIdAndTitleContaining(@Param("userId") Long userId, @Param("query") String query);
 
     @Query("SELECT sl.song FROM SongLike sl WHERE sl.user.id = :userId AND sl.song.status = com.example.CMCmp3.entity.SongStatus.APPROVED")
     List<Song> findLikedSongsByUserId(@Param("userId") Long userId);
