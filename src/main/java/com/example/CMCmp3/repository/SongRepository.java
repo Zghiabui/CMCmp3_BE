@@ -63,6 +63,9 @@ public interface SongRepository extends JpaRepository<Song, Long> {
 
     List<Song> findByUploader(User uploader);
 
+    @Query("SELECT s FROM Song s WHERE s.uploader.id = :userId AND LOWER(s.title) LIKE LOWER(CONCAT('%', :query, '%'))")
+    List<Song> findByUploaderIdAndTitleContaining(@Param("userId") Long userId, @Param("query") String query);
+
     @Query("SELECT sl.song FROM SongLike sl WHERE sl.user.id = :userId AND sl.song.status = com.example.CMCmp3.entity.SongStatus.APPROVED")
     List<Song> findLikedSongsByUserId(@Param("userId") Long userId);
 

@@ -256,16 +256,16 @@ public class SongService {
     }
 
     @Transactional(readOnly = true)
-    public List<SongDTO> getUploadedSongsForCurrentUser() {
-        // 1. Get current user
-        String email = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername();
-        User currentUser = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Current user not found in database"));
+    public List<SongDTO> getUploadedSongsForCurrentUser(String query) {
+        User currentUser = getCurrentAuthenticatedUser();
+        List<Song> songs;
 
-        // 2. Find songs by uploader
-        List<Song> songs = songRepository.findByUploader(currentUser);
+        if (query != null && !query.trim().isEmpty()) {
+            songs = songRepository.findByUploaderIdAndTitleContaining(currentUser.getId(), query);
+        } else {
+            songs = songRepository.findByUploader(currentUser);
+        }
 
-        // 3. Map to DTOs and return
         return songs.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
