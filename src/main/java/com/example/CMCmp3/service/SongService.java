@@ -27,9 +27,14 @@ import java.net.URL;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @Service
 @RequiredArgsConstructor
 public class SongService {
+
+    private static final Logger logger = LoggerFactory.getLogger(SongService.class);
 
     private final SongRepository songRepository;
     private final ArtistRepository artistRepository;
@@ -256,16 +261,21 @@ public class SongService {
     }
 
     @Transactional(readOnly = true)
-    public List<SongDTO> getUploadedSongsForCurrentUser() {
-        // 1. Get current user
-        String email = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername();
-        User currentUser = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Current user not found in database"));
+    public List<SongDTO> getUploadedSongsForCurrentUser(String query) {
+        User currentUser = getCurrentAuthenticatedUser();
+        logger.info(">>> [getUploadedSongs] Current User ID: {}, Email: {}", currentUser.getId(), currentUser.getEmail());
+        logger.info(">>> [getUploadedSongs] Search Query: '{}'", query);
 
-        // 2. Find songs by uploader
-        List<Song> songs = songRepository.findByUploader(currentUser);
+        List<Song> songs;
 
-        // 3. Map to DTOs and return
+        if (query != null && !query.trim().isEmpty()) {
+            songs = songRepository.findByUploaderIdAndTitleContaining(currentUser.getId(), query);
+            logger.info(">>> [getUploadedSongs] Found {} songs with query.", songs.size());
+        } else {
+            songs = songRepository.findByUploader(currentUser);
+            logger.info(">>> [getUploadedSongs] Found {} songs without query.", songs.size());
+        }
+
         return songs.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
