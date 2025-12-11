@@ -72,4 +72,8 @@ public interface SongRepository extends JpaRepository<Song, Long> {
     @Query(value = "SELECT DISTINCT s FROM Song s LEFT JOIN FETCH s.artists LEFT JOIN FETCH s.tags WHERE s.status = :status",
             countQuery = "SELECT COUNT(s) FROM Song s WHERE s.status = :status")
     Page<Song> findAllByStatus(@Param("status") com.example.CMCmp3.entity.SongStatus status, Pageable pageable);
+
+    @Query("SELECT DISTINCT s FROM Song s LEFT JOIN FETCH s.artists LEFT JOIN FETCH s.tags JOIN s.lyrics l WHERE " +
+            "LOWER(l.text) LIKE LOWER(CONCAT('%', :query, '%')) AND s.status = com.example.CMCmp3.entity.SongStatus.APPROVED")
+    List<Song> searchByLyric(@Param("query") String query);
 }
