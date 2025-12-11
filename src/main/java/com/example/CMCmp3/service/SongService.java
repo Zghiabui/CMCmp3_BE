@@ -629,6 +629,14 @@ public class SongService {
 
         return toDTO(updatedSong);
         }
+        public SongDTO mapToSongDto(Song song, User user) {
+        SongDTO dto = toDTO(song);
+        if (user != null) {
+            SongLikeId likeId = new SongLikeId(user.getId(), song.getId());
+            dto.setLiked(songLikeRepository.existsById(likeId));
+        }
+        return dto;
+    }
 }
 
     
