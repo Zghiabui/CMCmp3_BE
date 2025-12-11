@@ -198,6 +198,36 @@ public class SongService {
         return song;
     }
 
+    private SongSearchResponseDTO toSongSearchResponseDTO(Song s) {
+        SongSearchResponseDTO dto = new SongSearchResponseDTO();
+        dto.setId(s.getId());
+        dto.setTitle(s.getTitle());
+
+        if (s.getArtists() != null && !s.getArtists().isEmpty()) {
+            dto.setArtistName(s.getArtists().stream()
+                    .map(Artist::getName)
+                    .collect(Collectors.joining(", ")));
+        } else {
+            dto.setArtistName("");
+        }
+
+        if (s.getTags() != null) {
+            Set<TagDTO> tagDTOS = s.getTags().stream()
+                    .map(t -> {
+                        TagDTO tDto = new TagDTO();
+                        tDto.setId(t.getId());
+                        tDto.setName(t.getName());
+                        return tDto;
+                    })
+                    .collect(Collectors.toSet());
+            dto.setTags(tagDTOS);
+        } else {
+            dto.setTags(Collections.emptySet());
+        }
+
+        return dto;
+    }
+
     // 3. READ OPERATIONS (Đọc dữ liệu)
 
     @Transactional(readOnly = true)
@@ -636,6 +666,13 @@ public class SongService {
             dto.setLiked(songLikeRepository.existsById(likeId));
         }
         return dto;
+
+    @Transactional(readOnly = true)
+    public List<SongSearchResponseDTO> searchByLyric(String query) {
+        List<Song> songs = songRepository.searchByLyric(query);
+        return songs.stream()
+                .map(this::toSongSearchResponseDTO)
+                .collect(Collectors.toList());
     }
 }
 

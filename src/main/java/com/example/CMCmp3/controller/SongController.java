@@ -3,6 +3,7 @@ package com.example.CMCmp3.controller;
 import com.example.CMCmp3.dto.CreateSongDTO;
 import com.example.CMCmp3.dto.SongDTO;
 import com.example.CMCmp3.dto.AddLyricsDTO;
+import com.example.CMCmp3.dto.SongSearchResponseDTO;
 import com.example.CMCmp3.service.SongService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -239,5 +240,10 @@ public class SongController {
     public ResponseEntity<String> shareSong(@PathVariable Long id) {
         String shareUrl = "http://localhost:3000/songs/" + id;
         return ResponseEntity.ok(shareUrl);
+    }
+
+    @GetMapping("/search/lyric")
+    public ResponseEntity<List<SongSearchResponseDTO>> searchByLyric(@RequestParam("query") String query) {
+        return ResponseEntity.ok(songService.searchByLyric(query));
     }
 }

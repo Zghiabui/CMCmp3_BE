@@ -77,4 +77,7 @@ public interface SongRepository extends JpaRepository<Song, Long> {
     List<Song> findSongsByArtistsAndTags(@Param("artistIds") Set<Long> artistIds, @Param("tagIds") Set<Long> tagIds);
 
     List<Song> findTop10ByOrderByListenCountDesc();
+    @Query("SELECT DISTINCT s FROM Song s LEFT JOIN FETCH s.artists LEFT JOIN FETCH s.tags JOIN s.lyrics l WHERE " +
+            "LOWER(l.text) LIKE LOWER(CONCAT('%', :query, '%')) AND s.status = com.example.CMCmp3.entity.SongStatus.APPROVED")
+    List<Song> searchByLyric(@Param("query") String query);
 }
