@@ -72,6 +72,4 @@ public interface SongListenLogRepository extends JpaRepository<SongListenLog, Lo
         Long getSongId();
         Long getListenCount();
     }
-
-    List<SongListenLog> findByUser(com.example.CMCmp3.entity.User user);
 }
