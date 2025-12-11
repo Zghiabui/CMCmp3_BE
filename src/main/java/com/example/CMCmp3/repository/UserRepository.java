@@ -1,5 +1,6 @@
 package com.example.CMCmp3.repository;
 
+import com.example.CMCmp3.entity.Artist;
 import com.example.CMCmp3.entity.User;
 
 import com.example.CMCmp3.entity.UserStatus;
@@ -49,4 +50,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     List<User> findAllByDisplayNameContainingIgnoreCase(String query);
 
+    Optional<User> findByArtist(Artist artist); // New method added
 }
+

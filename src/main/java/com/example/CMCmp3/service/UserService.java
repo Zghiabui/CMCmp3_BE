@@ -1,5 +1,6 @@
 package com.example.CMCmp3.service;
 
+import com.example.CMCmp3.dto.ChangePasswordDTO; // Import ChangePasswordDTO
 import com.example.CMCmp3.dto.RegisterDTO;
 import com.example.CMCmp3.dto.UpdateUserDTO;
 import com.example.CMCmp3.dto.UserDTO;
@@ -19,7 +20,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -31,10 +33,13 @@ import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class UserService {
+
+    private static final Logger log = LoggerFactory.getLogger(UserService.class);
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -53,7 +58,9 @@ public class UserService {
                 Set.of(u.getRole().name()), // Dùng Set<String> khớp với DTO
                 u.getCreatedAt(),
                 u.getUpdatedAt(),
-                u.getLastLoginTime()
+                u.getLastLoginTime(),
+                u.getProvider().name(),
+                u.isTwoFactorEnabled()
         );
     }
 
@@ -63,6 +70,10 @@ public class UserService {
         }
         return userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    public User getUserFromAuthentication(Authentication authentication) {
+        return getCurrentUser(authentication);
     }
 
     public User registerUser(RegisterDTO registerDTO) {
@@ -126,9 +137,25 @@ public class UserService {
         return user;
     }
 
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(safeLower(email));
+    }
+
     public UserDTO getMe(Authentication authentication) {
         User user = getCurrentUser(authentication);
         return convertToDTO(user); // Dùng hàm convert chuẩn
+    }
+
+    @Transactional
+    public UserDTO toggleTwoFactorAuthentication(Authentication authentication) {
+        User user = getCurrentUser(authentication);
+        boolean initial2FAStatus = user.isTwoFactorEnabled();
+        log.info("User {} (ID: {}) initial 2FA status: {}", user.getEmail(), user.getId(), initial2FAStatus);
+
+        user.setTwoFactorEnabled(!initial2FAStatus);
+        User updatedUser = userRepository.save(user);
+        log.info("User {} (ID: {}) 2FA status after save: {}", updatedUser.getEmail(), updatedUser.getId(), updatedUser.isTwoFactorEnabled());
+        return convertToDTO(updatedUser);
     }
 
     public UserDTO updateMe(Authentication authentication, UpdateUserDTO userDTO) {
@@ -159,6 +186,24 @@ public class UserService {
         }
     }
 
+    @Transactional
+    public void changePassword(Authentication authentication, ChangePasswordDTO dto) {
+        User user = getCurrentUser(authentication);
+
+        // KIỂM TRA QUAN TRỌNG: Chặn đổi mật khẩu cho tài khoản không phải là 'LOCAL'
+        if (user.getProvider() != AuthProvider.LOCAL) {
+            throw new RuntimeException("Không thể đổi mật khẩu cho tài khoản đã liên kết với " + user.getProvider() + ".");
+        }
+
+        // Verify old password
+        if (!passwordEncoder.matches(dto.getOldPassword(), user.getPassword())) {
+            throw new RuntimeException("Mật khẩu cũ không đúng.");
+        }
+
+        // Encode and set new password
+        user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
+        userRepository.save(user);
+    }
 
     public void resetPassword(String email, String newPassword) {
         User user = userRepository.findByEmail(email)

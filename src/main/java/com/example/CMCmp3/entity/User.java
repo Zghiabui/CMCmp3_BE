@@ -58,7 +58,7 @@ public class User implements UserDetails {
     private Gender gender;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 20)
     private Role role;
 
     @Enumerated(EnumType.STRING)
@@ -70,6 +70,9 @@ public class User implements UserDetails {
     private AuthProvider provider;
 
     private String providerId;
+
+    @Column(nullable = false, columnDefinition = "TINYINT(1)")
+    private boolean isTwoFactorEnabled = false;
 
     @CreationTimestamp
     @Column(updatable = false)
@@ -86,10 +89,22 @@ public class User implements UserDetails {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<SongLike> likedSongs = new HashSet<>();
 
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<PlaylistLike> likedPlaylists = new HashSet<>();
+
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "artist_id", referencedColumnName = "id")
+    private Artist artist;
+
     // Spring Security
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
+    }
+
+    @Override
+    public String getUsername() {
+        return this.email;
     }
 
     @Override
