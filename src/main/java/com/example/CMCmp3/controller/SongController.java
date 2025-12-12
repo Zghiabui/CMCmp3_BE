@@ -173,7 +173,7 @@ public class SongController {
     }
 
     @PostMapping("/{id}/lyrics")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<SongDTO> addLyrics(@PathVariable Long id, @RequestBody AddLyricsDTO dto) {
         return ResponseEntity.ok(songService.addLyricsToSong(id, dto));
     }
