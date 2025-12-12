@@ -99,7 +99,9 @@ public class AlbumService {
         }
 
         if (a.getOwner() != null) {
-            dto.setOwner(new AlbumDTO.OwnerDTO(a.getOwner().getId(), a.getOwner().getDisplayName()));
+            User owner = a.getOwner();
+            boolean isVerified = owner.getRole() == Role.ARTIST;
+            dto.setOwner(new AlbumDTO.OwnerDTO(owner.getId(), owner.getDisplayName(), owner.getRole().name(), isVerified));
         }
 
         if (a.getArtists() != null && !a.getArtists().isEmpty()) {
