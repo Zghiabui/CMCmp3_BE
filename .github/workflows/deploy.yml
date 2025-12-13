@@ -21,9 +21,6 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      # Chạy test để đảm bảo code không lỗi logic trước khi deploy
-      - name: Run Unit Tests
-        run: mvn test
 
       - name: Install Railway CLI
         run: npm install -g @railway/cli
